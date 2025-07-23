@@ -1,3 +1,13 @@
+generator client-2 {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db-2 {
+  provider = "sqlite"
+  url      = env("DATABASE_URL_1")
+}
+
 model Charger {
   id        Int       @id @default(autoincrement())
   name      String    @unique
