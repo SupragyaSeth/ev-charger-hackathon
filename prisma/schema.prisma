@@ -14,6 +14,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+datasource qdb {
+  provider = "sqlite"
+  url      = "../src/generated/prisma"
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
