@@ -1,0 +1,18 @@
+model Charger {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  location  String?
+  queues    Queue[]
+}
+
+model Queue {
+  id         Int      @id @default(autoincrement())
+  position   Int
+  createdAt  DateTime @default(now())
+
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+
+  chargerId  Int
+  charger    Charger  @relation(fields: [chargerId], references: [id])
+}
