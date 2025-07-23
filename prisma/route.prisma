@@ -1,6 +1,6 @@
 generator client-2 {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output   = "../src/generated/prisma/queue"
 }
 
 datasource db-2 {
@@ -19,10 +19,8 @@ model Queue {
   id         Int      @id @default(autoincrement())
   position   Int
   createdAt  DateTime @default(now())
-
   userId     Int
-  user       User     @relation(fields: [userId], references: [id])
-
   chargerId  Int
+
   charger    Charger  @relation(fields: [chargerId], references: [id])
 }

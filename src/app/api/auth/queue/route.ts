@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // adjust path to your prisma client
+import { PrismaClient } from "@/generated/prisma/queue/client"; // Adjust the import path as necessary
 
+const prisma = new PrismaClient();
+/**
+ * API route to handle adding a user to the queue for a specific charger.
+ * 
+ * @route POST /api/queue
+ * @body { userId: number, chargerId: number }
+ * @returns JSON response with queue entry or error message
+ * 
+ * Example request:
 /**
  * POST /api/queue
  * Body: { userId: number, chargerId: number }
@@ -12,7 +21,10 @@ export async function POST(req: Request) {
     const { userId, chargerId } = body;
 
     if (!userId || !chargerId) {
-      return NextResponse.json({ error: "Missing userId or chargerId" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing userId or chargerId" },
+        { status: 400 }
+      );
     }
 
     // Check if user is already in the queue for this charger
@@ -22,7 +34,10 @@ export async function POST(req: Request) {
 
     if (existingEntry) {
       return NextResponse.json(
-        { message: "User is already in the queue for this charger", queueEntry: existingEntry },
+        {
+          message: "User is already in the queue for this charger",
+          queueEntry: existingEntry,
+        },
         { status: 200 }
       );
     }
@@ -47,6 +62,9 @@ export async function POST(req: Request) {
     return NextResponse.json(newEntry, { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Failed to add to queue" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to add to queue" },
+      { status: 500 }
+    );
   }
 }
