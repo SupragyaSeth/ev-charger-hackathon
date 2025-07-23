@@ -17,10 +17,7 @@ export default function SignUpPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      setMessage("Signup successful! You can now sign in.");
-      setEmail("");
-      setPassword("");
-      setName("");
+      window.location.href = "/";
     } else {
       setMessage(data.error || "Signup failed");
     }

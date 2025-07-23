@@ -17,10 +17,7 @@ export default function SignInPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      setMessage("Sign in successful!");
-      setEmail("");
-      setPassword("");
-      // You can redirect or set user state here
+      window.location.href = "/";
     } else {
       setMessage(data.error || "Sign in failed");
     }

@@ -32,7 +32,6 @@ export default function RootLayout({
           <div className="font-bold text-lg">EV Charger Manager</div>
           <div className="flex gap-4">
             <Link href="/">Home</Link>
-            <Link href="/queue">Queue</Link>
             <Link href="/auth/signin">Sign In</Link>
             <Link href="/auth/signup">Sign Up</Link>
           </div>
