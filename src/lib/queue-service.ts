@@ -190,6 +190,47 @@ export class QueueService {
   }
 
   /**
+   * Move user back one spot in their queue (swap with the person behind them)
+   */
+  static async moveBackOneSpot(userId: number): Promise<void> {
+    const userEntry = await queuePrisma.queue.findFirst({
+      where: { userId, status: "waiting" },
+    });
+
+    if (!userEntry) {
+      throw new Error("User not found in queue");
+    }
+
+    const chargerId = userEntry.chargerId;
+    const currentPosition = userEntry.position;
+
+    // Find the person behind the user (higher position number)
+    const personBehind = await queuePrisma.queue.findFirst({
+      where: { 
+        chargerId, 
+        status: "waiting",
+        position: currentPosition + 1
+      },
+    });
+
+    if (!personBehind) {
+      // User is already at the back of the queue for this charger, can't move back
+      throw new Error("Cannot move back - you are already at the back of the queue for this charger");
+    }
+
+    // Swap positions: user moves to position + 1, person behind moves to position
+    await queuePrisma.queue.update({
+      where: { id: userEntry.id },
+      data: { position: currentPosition + 1 },
+    });
+
+    await queuePrisma.queue.update({
+      where: { id: personBehind.id },
+      data: { position: currentPosition },
+    });
+  }
+
+  /**
    * Get remaining time for a charging session
    */
   static async getRemainingTime(queueEntryId: number): Promise<number> {

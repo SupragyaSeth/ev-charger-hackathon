@@ -134,6 +134,9 @@ export default function Home() {
     durationModal: boolean;
     completionModal: boolean;
   }>({ durationModal: false, completionModal: false });
+  const [modalTimeoutId, setModalTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [modalCountdownInterval, setModalCountdownInterval] = useState<NodeJS.Timeout | null>(null);
+  const [modalTimeRemaining, setModalTimeRemaining] = useState<number>(0);
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -189,6 +192,16 @@ export default function Home() {
     setAuthChecked(true);
     fetchQueue();
 
+    // Initialize timers on app load
+    fetch("/api/init-timers")
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Timer initialization:", data);
+      })
+      .catch((error) => {
+        console.error("Failed to initialize timers:", error);
+      });
+
     // Update queue status every 5 seconds to get real-time timer updates
     const queueInterval = setInterval(() => {
       fetchQueue();
@@ -208,6 +221,14 @@ export default function Home() {
     return () => {
       clearInterval(queueInterval);
       clearInterval(chargerInterval);
+      // Clear modal timeout if it exists
+      if (modalTimeoutId) {
+        clearTimeout(modalTimeoutId);
+      }
+      // Clear modal countdown interval if it exists
+      if (modalCountdownInterval) {
+        clearInterval(modalCountdownInterval);
+      }
     };
   }, [fetchQueue, router]);
 
@@ -231,10 +252,7 @@ export default function Home() {
 
       await queueApi.joinQueue(user.id, bestChargerId);
       setMessage(`You joined the queue!`);
-      addToast(
-        `Successfully joined the queue for Charger ${bestChargerId}!`,
-        "success"
-      );
+      addToast(`Successfully joined the queue!`, "success");
       await fetchQueue(); // This will trigger the modal if user is first
     } catch (error) {
       const errorMessage =
@@ -269,10 +287,133 @@ export default function Home() {
       setShowDurationModal(false);
       // Reset the duration modal dismissed flag since user successfully confirmed
       setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
+      
+      // Clear the modal timeout
+      if (modalTimeoutId) {
+        clearTimeout(modalTimeoutId);
+        setModalTimeoutId(null);
+      }
+      if (modalCountdownInterval) {
+        clearInterval(modalCountdownInterval);
+        setModalCountdownInterval(null);
+      }
+      setModalTimeRemaining(0);
+      
       await fetchQueue();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to start charging";
+      setMessage(errorMessage);
+      addToast(errorMessage, "error");
+    }
+    setLoading(false);
+  }
+
+  async function handleCancelCharging() {
+    if (!user?.id) return;
+
+    setLoading(true);
+    try {
+      // Remove the user from the queue completely
+      await queueApi.removeFromQueue(user.id);
+      setMessage("You've been removed from the queue");
+      addToast("You left the queue. Your spot has been given to the next person.", "info");
+      
+      // Close the modal and reset states
+      setShowDurationModal(false);
+      setConfirmingChargerId(null);
+      setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
+      
+      // Clear the modal timeout
+      if (modalTimeoutId) {
+        clearTimeout(modalTimeoutId);
+        setModalTimeoutId(null);
+      }
+      if (modalCountdownInterval) {
+        clearInterval(modalCountdownInterval);
+        setModalCountdownInterval(null);
+      }
+      setModalTimeRemaining(0);
+      
+      // Reset toast flags so next person can get their notifications
+      setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
+      
+      // Refresh the queue to update positions and trigger next person's modal
+      await fetchQueue();
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to leave queue";
+      setMessage(errorMessage);
+      addToast(errorMessage, "error");
+    }
+    setLoading(false);
+  }
+
+  async function handleModalTimeout() {
+    if (!user?.id) return;
+
+    try {
+      // Move user back one spot in the queue instead of removing them
+      await queueApi.moveBackOneSpot(user.id);
+      
+      // Close the modal and reset states
+      setShowDurationModal(false);
+      setConfirmingChargerId(null);
+      setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
+      setModalTimeoutId(null);
+      if (modalCountdownInterval) {
+        clearInterval(modalCountdownInterval);
+        setModalCountdownInterval(null);
+      }
+      setModalTimeRemaining(0);
+      
+      // Reset toast flags so next person can get their notifications
+      setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
+      
+      // Show timeout message
+      addToast("Time expired! You've been moved back one spot to give the next person a chance.", "warning");
+      
+      // Refresh the queue to update positions and trigger next person's modal
+      await fetchQueue();
+    } catch (error) {
+      console.error("Failed to handle modal timeout:", error);
+    }
+  }
+
+  async function handleMoveBackOneSpot() {
+    if (!user?.id) return;
+
+    setLoading(true);
+    try {
+      // Move user back one spot in the queue
+      await queueApi.moveBackOneSpot(user.id);
+      setMessage("You've been moved back one spot in the queue");
+      addToast("Moved back one spot. The next person can go ahead of you!", "info");
+      
+      // Close the modal and reset states
+      setShowDurationModal(false);
+      setConfirmingChargerId(null);
+      setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
+      
+      // Clear the modal timeout
+      if (modalTimeoutId) {
+        clearTimeout(modalTimeoutId);
+        setModalTimeoutId(null);
+      }
+      if (modalCountdownInterval) {
+        clearInterval(modalCountdownInterval);
+        setModalCountdownInterval(null);
+      }
+      setModalTimeRemaining(0);
+      
+      // Reset toast flags so next person can get their notifications
+      setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
+      
+      // Refresh the queue to update positions and trigger next person's modal
+      await fetchQueue();
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to move back one spot";
       setMessage(errorMessage);
       addToast(errorMessage, "error");
     }
@@ -514,32 +655,18 @@ export default function Home() {
 
         // Show toasts only once per session
         if (userChargingEntry.status === "overtime") {
-          setToastShownFor((prev) => {
-            if (!prev.overtime) {
-              setTimeout(() => {
-                addToast("Time expired! Please move your car.", "error", 0);
-              }, 0);
-              return { ...prev, overtime: true };
-            }
-            return prev;
-          });
+          if (!toastShownFor.overtime) {
+            addToast("Time expired! Please move your car.", "error", 0);
+            setToastShownFor((prev) => ({ ...prev, overtime: true }));
+          }
         } else if (
           userChargingEntry.remainingSeconds !== undefined &&
           userChargingEntry.remainingSeconds <= 120
         ) {
-          setToastShownFor((prev) => {
-            if (!prev.almostDone) {
-              setTimeout(() => {
-                addToast(
-                  "Almost done! Please prepare to unplug.",
-                  "warning",
-                  0
-                );
-              }, 0);
-              return { ...prev, almostDone: true };
-            }
-            return prev;
-          });
+          if (!toastShownFor.almostDone) {
+            addToast("Almost done! Please prepare to unplug.", "warning", 0);
+            setToastShownFor((prev) => ({ ...prev, almostDone: true }));
+          }
         }
       } else if (!shouldShowModal) {
         setShowCompletionModal(false);
@@ -594,42 +721,78 @@ export default function Home() {
     }
 
     if (userFirstInLine && canStartCharging) {
-      if (!modalDismissedFor.durationModal) {
+      // Always show modal when user is first in line and charger is available
+      if (!showDurationModal) {
         setShowDurationModal(true);
         setConfirmingChargerId(userFirstInLine.chargerId);
 
-        // Show "next in line" toast only once per queue entry
-        setToastShownFor((prev) => {
-          if (prev.nextInLine !== userFirstInLine.id) {
-            setTimeout(() => {
-              addToast("Your charger is ready! Please plug in.", "success", 0);
-            }, 0);
-            return { ...prev, nextInLine: userFirstInLine.id };
-          }
-          return prev;
-        });
+        // Start the 5-minute countdown timer
+        setModalTimeRemaining(300); // 5 minutes in seconds
+        const timeoutId = setTimeout(() => {
+          handleModalTimeout();
+        }, 300000); // 5 minutes in milliseconds
+        setModalTimeoutId(timeoutId);
+
+        // Start countdown interval
+        const countdownInterval = setInterval(() => {
+          setModalTimeRemaining((prev) => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        setModalCountdownInterval(countdownInterval);
+
+        // Show "charger ready" toast only once per queue entry
+        if (toastShownFor.nextInLine !== userFirstInLine.id) {
+          addToast("Your charger is ready! Please plug in. You have 5 minutes to respond or you'll be moved back one spot.", "success", 0);
+          setToastShownFor((prev) => ({
+            ...prev,
+            nextInLine: userFirstInLine.id,
+          }));
+        }
       }
     } else if (userFirstInLine && !canStartCharging) {
       // User is first in line but charger is still occupied - just show toast
-      setToastShownFor((prev) => {
-        if (prev.nextInLine !== userFirstInLine.id) {
-          setTimeout(() => {
-            addToast(
-              "You're next in line! Waiting for charger to become available.",
-              "info",
-              0
-            );
-          }, 0);
-          return { ...prev, nextInLine: userFirstInLine.id };
-        }
-        return prev;
-      });
+      if (toastShownFor.nextInLine !== userFirstInLine.id) {
+        addToast(
+          "You're next in line! Waiting for charger to become available.",
+          "info",
+          0
+        );
+        setToastShownFor((prev) => ({
+          ...prev,
+          nextInLine: userFirstInLine.id,
+        }));
+      }
       // Don't show the duration modal yet
       setShowDurationModal(false);
       setConfirmingChargerId(null);
+      // Clear any existing timeout
+      if (modalTimeoutId) {
+        clearTimeout(modalTimeoutId);
+        setModalTimeoutId(null);
+      }
+      if (modalCountdownInterval) {
+        clearInterval(modalCountdownInterval);
+        setModalCountdownInterval(null);
+      }
+      setModalTimeRemaining(0);
     } else if (!userChargingEntry) {
       setShowDurationModal(false);
       setConfirmingChargerId(null);
+      // Clear any existing timeout
+      if (modalTimeoutId) {
+        clearTimeout(modalTimeoutId);
+        setModalTimeoutId(null);
+      }
+      if (modalCountdownInterval) {
+        clearInterval(modalCountdownInterval);
+        setModalCountdownInterval(null);
+      }
+      setModalTimeRemaining(0);
       // Reset nextInLine flag and modal dismissed flag when no longer first in line
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
       setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
@@ -717,6 +880,18 @@ export default function Home() {
             <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">
               Plug In & Confirm
             </h2>
+            {modalTimeRemaining > 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
+                    ⏰ Time remaining: {Math.floor(modalTimeRemaining / 60)}:{String(modalTimeRemaining % 60).padStart(2, '0')}
+                  </span>
+                </div>
+                <p className="text-xs text-yellow-700 dark:text-yellow-300 text-center mt-1">
+                  You'll be moved back one spot if you don't respond
+                </p>
+              </div>
+            )}
             <p className="mb-2 text-gray-600 dark:text-gray-300">
               Charger assigned:{" "}
               <span className="font-semibold">
@@ -737,17 +912,20 @@ export default function Home() {
             />
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 cursor-pointer"
-                onClick={() => {
-                  setShowDurationModal(false);
-                  setModalDismissedFor((prev) => ({
-                    ...prev,
-                    durationModal: true,
-                  }));
-                }}
+                className="px-4 py-2 rounded bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600 cursor-pointer font-medium"
+                onClick={handleMoveBackOneSpot}
                 disabled={loading}
+                title="Move back one spot in the queue - useful if you're in a meeting or can't get to your car right now"
               >
-                Cancel
+                📋 Move Back One Spot
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600 cursor-pointer font-medium"
+                onClick={handleCancelCharging}
+                disabled={loading}
+                title="This will remove you from the queue completely and give your spot to the next person"
+              >
+                ❌ Cancel & Leave Queue
               </button>
               <button
                 className="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700 cursor-pointer"
@@ -757,6 +935,12 @@ export default function Home() {
                 {loading ? "Confirming..." : "Confirm & Start Charging"}
               </button>
             </div>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 text-center">
+              💡 In a meeting? Use "Move Back One Spot" to let the next person go first while staying near the front
+            </p>
+            <p className="text-xs text-red-600 dark:text-red-400 mt-1 text-center">
+              ⚠️ "Cancel & Leave Queue" will remove you completely
+            </p>
           </div>
         </div>
       )}
@@ -1232,8 +1416,7 @@ export default function Home() {
                             } else {
                               return (
                                 <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                                  🎯 Next in line! Your charger is ready - you
-                                  should see a popup to confirm.
+                                  🎯 Next in line! Your charger is ready - you should see a popup to confirm.
                                 </p>
                               );
                             }

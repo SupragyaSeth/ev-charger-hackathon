@@ -63,14 +63,17 @@ export const POST = withErrorHandler(async (req: Request) => {
     case "clear_waiting":
       // Clear only waiting entries (keep charging)
       await queuePrisma.queue.deleteMany({
-        where: { status: "waiting" }
+        where: { status: "waiting" },
       });
       return createSuccessResponse(null, "Waiting queue cleared successfully");
 
     case "clear_all_including_charging":
       // Clear ALL entries including those currently charging
       await queuePrisma.queue.deleteMany({});
-      return createSuccessResponse(null, "All queue entries cleared successfully");
+      return createSuccessResponse(
+        null,
+        "All queue entries cleared successfully"
+      );
 
     case "reset_positions":
       // Reset positions for all chargers
@@ -81,7 +84,7 @@ export const POST = withErrorHandler(async (req: Request) => {
         for (let i = 0; i < waitingEntries.length; i++) {
           await queuePrisma.queue.update({
             where: { id: waitingEntries[i].id },
-            data: { position: i + 1 }
+            data: { position: i + 1 },
           });
         }
       }

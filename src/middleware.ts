@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { TimerService } from "@/lib/timer-service";
-
-let timersInitialized = false;
 
 export async function middleware(request: NextRequest) {
-  // Initialize timers on first request
-  if (!timersInitialized) {
-    try {
-      await TimerService.initializeExistingTimers();
-      timersInitialized = true;
-      console.log("Timers initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize timers:", error);
-    }
-  }
-
+  // Middleware runs in Edge Runtime which doesn't support Prisma
+  // Timer initialization has been moved to /api/init-timers
   return NextResponse.next();
 }
 

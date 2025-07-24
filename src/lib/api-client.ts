@@ -75,6 +75,16 @@ export const queueApi = {
   },
 
   /**
+   * Move user back one spot in queue
+   */
+  moveBackOneSpot: async (userId: number) => {
+    return apiCall("/api/auth/queue", {
+      method: "PUT",
+      body: JSON.stringify({ userId, action: "moveBackOneSpot" }),
+    });
+  },
+
+  /**
    * Get users information
    */
   getUsers: async (userIds: number[]) => {

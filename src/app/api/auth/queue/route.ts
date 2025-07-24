@@ -104,3 +104,24 @@ export const DELETE = withErrorHandler(async (req: Request) => {
   await QueueService.removeFromQueue(Number(userId));
   return createSuccessResponse(null, "Removed from queue successfully");
 });
+
+/**
+ * PUT /api/auth/queue
+ * Body: { userId: number, action: "moveBackOneSpot" }
+ * Moves user back one spot in their queue
+ */
+export const PUT = withErrorHandler(async (req: Request) => {
+  const body = await req.json();
+  const { userId, action } = body;
+
+  if (!userId) {
+    return createErrorResponse("Missing userId", 400);
+  }
+
+  if (action === "moveBackOneSpot") {
+    await QueueService.moveBackOneSpot(Number(userId));
+    return createSuccessResponse(null, "Moved back one spot successfully");
+  }
+
+  return createErrorResponse("Invalid action", 400);
+});
