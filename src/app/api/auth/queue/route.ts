@@ -33,9 +33,18 @@ export const PATCH = withErrorHandler(async (req: Request) => {
 
 /**
  * GET /api/auth/queue
- * Returns the current queue with all entries
+ * Query params: ?action=best-charger to get the best available charger
+ * Returns the current queue with all entries or best charger ID
  */
-export const GET = withErrorHandler(async () => {
+export const GET = withErrorHandler(async (req: Request) => {
+  const url = new URL(req.url);
+  const action = url.searchParams.get('action');
+
+  if (action === 'best-charger') {
+    const bestChargerId = await QueueService.findBestCharger();
+    return createSuccessResponse({ chargerId: bestChargerId });
+  }
+
   const queue = await QueueService.getQueue();
   return createSuccessResponse({ queue });
 });

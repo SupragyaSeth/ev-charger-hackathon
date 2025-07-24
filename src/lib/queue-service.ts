@@ -183,6 +183,48 @@ export class QueueService {
   }
 
   /**
+   * Find the best available charger for a new user
+   * Priority: 1) Available chargers, 2) Chargers with shortest queue
+   */
+  static async findBestCharger(): Promise<number> {
+    const MAX_CHARGERS = 8;
+    const chargerStats = [];
+
+    // Get stats for each charger
+    for (let chargerId = 1; chargerId <= MAX_CHARGERS; chargerId++) {
+      const chargingCount = await queuePrisma.queue.count({
+        where: { chargerId, status: { in: ["charging", "overtime"] } },
+      });
+      
+      const waitingCount = await queuePrisma.queue.count({
+        where: { chargerId, status: "waiting" },
+      });
+
+      chargerStats.push({
+        chargerId,
+        isAvailable: chargingCount === 0,
+        totalQueue: chargingCount + waitingCount,
+        waitingCount,
+      });
+    }
+
+    // Sort by availability first, then by shortest queue
+    chargerStats.sort((a, b) => {
+      // Available chargers first
+      if (a.isAvailable && !b.isAvailable) return -1;
+      if (!a.isAvailable && b.isAvailable) return 1;
+      
+      // Then by shortest total queue
+      if (a.totalQueue !== b.totalQueue) return a.totalQueue - b.totalQueue;
+      
+      // Finally by charger ID as tiebreaker
+      return a.chargerId - b.chargerId;
+    });
+
+    return chargerStats[0].chargerId;
+  }
+
+  /**
    * Reorder queue positions after removal
    */
   private static async reorderQueue(chargerId: number): Promise<void> {

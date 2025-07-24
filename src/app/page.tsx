@@ -184,7 +184,6 @@ export default function Home() {
     const user = window.localStorage.getItem("user");
     if (!user) {
       router.replace("/auth");
-      setAuthChecked(true);
       return;
     }
     setAuthChecked(true);
@@ -224,9 +223,18 @@ export default function Home() {
     }
 
     try {
-      await queueApi.joinQueue(user.id, 1); // Default to charger 1
-      setMessage("You joined the queue!");
-      addToast("Successfully joined the queue!", "success");
+      // Get the best available charger
+      const bestChargerData = await queueApi.getBestCharger();
+      const bestChargerId = bestChargerData.chargerId;
+
+      console.log(`[joinQueue] Assigning user to charger ${bestChargerId}`);
+
+      await queueApi.joinQueue(user.id, bestChargerId);
+      setMessage(`You joined the queue for Charger ${bestChargerId}!`);
+      addToast(
+        `Successfully joined the queue for Charger ${bestChargerId}!`,
+        "success"
+      );
       await fetchQueue(); // This will trigger the modal if user is first
     } catch (error) {
       const errorMessage =
@@ -311,6 +319,17 @@ export default function Home() {
     setLoading(false);
   }
 
+  function signOut() {
+    // Clear user data from localStorage
+    window.localStorage.removeItem("user");
+
+    // Show success message
+    addToast("Successfully signed out", "success");
+
+    // Redirect to auth page
+    router.replace("/auth");
+  }
+
   function formatTime(minutes: number): string {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -379,7 +398,7 @@ export default function Home() {
           : null;
       console.log("[DEBUG] localStorage userRaw:", userRaw);
       if (!userRaw) {
-        setUser(null);
+        router.replace("/auth");
         return;
       }
       let localUser: { id?: number; name?: string; email?: string } = {};
@@ -393,40 +412,49 @@ export default function Home() {
             window.location.reload();
             return;
           } else {
-            setUser(null);
+            window.localStorage.removeItem("user");
+            router.replace("/auth");
             return;
           }
         } catch (e) {
           console.error("Failed to migrate user:", e);
-          setUser(null);
+          window.localStorage.removeItem("user");
+          router.replace("/auth");
           return;
         }
       }
       try {
         localUser = JSON.parse(userRaw);
       } catch {
-        setUser(null);
+        window.localStorage.removeItem("user");
+        router.replace("/auth");
         return;
       }
       console.log("[DEBUG] Parsed localUser:", localUser);
       if (!localUser.id) {
-        setUser(null);
+        window.localStorage.removeItem("user");
+        router.replace("/auth");
         return;
       }
       // Fetch user info from backend
       try {
         const userData = await authApi.getUser(localUser.id!);
-        setUser(userData.user || null);
+        if (userData.user) {
+          setUser(userData.user);
+        } else {
+          window.localStorage.removeItem("user");
+          router.replace("/auth");
+        }
       } catch (e) {
         console.log("[DEBUG] Error fetching user info:", e);
-        addToast("Failed to load user information", "error");
-        setUser(null);
+        window.localStorage.removeItem("user");
+        router.replace("/auth");
       }
     }
     if (authChecked) {
       fetchUser();
     }
-  }, [authChecked]);
+  }, [authChecked, router]);
 
   // Close profile popup on outside click (must be before any return)
   useEffect(() => {
@@ -577,33 +605,13 @@ export default function Home() {
     chargingMap[entry.chargerId] = entry;
   });
 
-  if (!authChecked) {
+  if (!authChecked || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         <span className="ml-4 text-lg text-gray-700 dark:text-gray-200">
-          Checking authentication...
+          Loading...
         </span>
-      </div>
-    );
-  }
-
-  if (authChecked && !user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-4xl mb-4">⚠️</div>
-        <div className="text-lg text-red-600 dark:text-red-400 mb-2">
-          Failed to load user info.
-        </div>
-        <button
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          onClick={() => {
-            window.localStorage.removeItem("user");
-            window.location.reload();
-          }}
-        >
-          Sign In Again
-        </button>
       </div>
     );
   }
@@ -645,15 +653,23 @@ export default function Home() {
             <div className="text-lg font-bold text-gray-800 dark:text-white mb-1">
               {user?.name || "User"}
             </div>
-            <div className="text-gray-500 dark:text-gray-300 text-sm mb-2">
+            <div className="text-gray-500 dark:text-gray-300 text-sm mb-4">
               {user?.email || "No email"}
             </div>
-            <button
-              className="mt-2 px-4 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
-              onClick={() => setProfileOpen(false)}
-            >
-              Close
-            </button>
+            <div className="flex gap-2 w-full">
+              <button
+                className="flex-1 px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                onClick={() => setProfileOpen(false)}
+              >
+                Close
+              </button>
+              <button
+                className="flex-1 px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                onClick={signOut}
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -92,6 +92,13 @@ export const queueApi = {
   },
 
   /**
+   * Get the best available charger for a new user
+   */
+  getBestCharger: async () => {
+    return apiCall<{ chargerId: number }>("/api/auth/queue?action=best-charger");
+  },
+
+  /**
    * Complete charging session
    */
   completeCharging: async (userId: number, chargerId: number) => {
