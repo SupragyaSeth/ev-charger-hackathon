@@ -1132,7 +1132,7 @@ export default function Home() {
             {/* Only show Join Queue if user is not in queue */}
             {user?.id && !queue.find((entry) => entry.userId === user.id) && (
               <button
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="bg-gradient-to-r from-blue-600 to-blue-300 hover:from-blue-500 hover:to-blue-800 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                 onClick={joinQueue}
                 disabled={loading}
               >
