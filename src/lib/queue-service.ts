@@ -206,16 +206,18 @@ export class QueueService {
 
     // Find the person behind the user (higher position number)
     const personBehind = await queuePrisma.queue.findFirst({
-      where: { 
-        chargerId, 
+      where: {
+        chargerId,
         status: "waiting",
-        position: currentPosition + 1
+        position: currentPosition + 1,
       },
     });
 
     if (!personBehind) {
       // User is already at the back of the queue for this charger, can't move back
-      throw new Error("Cannot move back - you are already at the back of the queue for this charger");
+      throw new Error(
+        "Cannot move back - you are already at the back of the queue for this charger"
+      );
     }
 
     // Swap positions: user moves to position + 1, person behind moves to position

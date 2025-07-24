@@ -134,8 +134,11 @@ export default function Home() {
     durationModal: boolean;
     completionModal: boolean;
   }>({ durationModal: false, completionModal: false });
-  const [modalTimeoutId, setModalTimeoutId] = useState<NodeJS.Timeout | null>(null);
-  const [modalCountdownInterval, setModalCountdownInterval] = useState<NodeJS.Timeout | null>(null);
+  const [modalTimeoutId, setModalTimeoutId] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const [modalCountdownInterval, setModalCountdownInterval] =
+    useState<NodeJS.Timeout | null>(null);
   const [modalTimeRemaining, setModalTimeRemaining] = useState<number>(0);
   const router = useRouter();
   const { addToast } = useToast();
@@ -274,6 +277,16 @@ export default function Home() {
   async function confirmCharging() {
     if (!confirmingChargerId || !user?.id) return;
 
+    // Validate duration input
+    if (durationInput < 10) {
+      addToast("Duration must be at least 10 minutes", "error");
+      return;
+    }
+    if (durationInput > 480) {
+      addToast("Duration cannot exceed 8 hours (480 minutes)", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       await queueApi.startCharging(user.id, confirmingChargerId, durationInput);
@@ -287,7 +300,7 @@ export default function Home() {
       setShowDurationModal(false);
       // Reset the duration modal dismissed flag since user successfully confirmed
       setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
-      
+
       // Clear the modal timeout
       if (modalTimeoutId) {
         clearTimeout(modalTimeoutId);
@@ -298,7 +311,7 @@ export default function Home() {
         setModalCountdownInterval(null);
       }
       setModalTimeRemaining(0);
-      
+
       await fetchQueue();
     } catch (error) {
       const errorMessage =
@@ -317,13 +330,16 @@ export default function Home() {
       // Remove the user from the queue completely
       await queueApi.removeFromQueue(user.id);
       setMessage("You've been removed from the queue");
-      addToast("You left the queue. Your spot has been given to the next person.", "info");
-      
+      addToast(
+        "You left the queue. Your spot has been given to the next person.",
+        "info"
+      );
+
       // Close the modal and reset states
       setShowDurationModal(false);
       setConfirmingChargerId(null);
       setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
-      
+
       // Clear the modal timeout
       if (modalTimeoutId) {
         clearTimeout(modalTimeoutId);
@@ -334,10 +350,10 @@ export default function Home() {
         setModalCountdownInterval(null);
       }
       setModalTimeRemaining(0);
-      
+
       // Reset toast flags so next person can get their notifications
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
-      
+
       // Refresh the queue to update positions and trigger next person's modal
       await fetchQueue();
     } catch (error) {
@@ -355,7 +371,7 @@ export default function Home() {
     try {
       // Move user back one spot in the queue instead of removing them
       await queueApi.moveBackOneSpot(user.id);
-      
+
       // Close the modal and reset states
       setShowDurationModal(false);
       setConfirmingChargerId(null);
@@ -366,13 +382,16 @@ export default function Home() {
         setModalCountdownInterval(null);
       }
       setModalTimeRemaining(0);
-      
+
       // Reset toast flags so next person can get their notifications
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
-      
+
       // Show timeout message
-      addToast("Time expired! You've been moved back one spot to give the next person a chance.", "warning");
-      
+      addToast(
+        "Time expired! You've been moved back one spot to give the next person a chance.",
+        "warning"
+      );
+
       // Refresh the queue to update positions and trigger next person's modal
       await fetchQueue();
     } catch (error) {
@@ -388,13 +407,16 @@ export default function Home() {
       // Move user back one spot in the queue
       await queueApi.moveBackOneSpot(user.id);
       setMessage("You've been moved back one spot in the queue");
-      addToast("Moved back one spot. The next person can go ahead of you!", "info");
-      
+      addToast(
+        "Moved back one spot. The next person can go ahead of you!",
+        "info"
+      );
+
       // Close the modal and reset states
       setShowDurationModal(false);
       setConfirmingChargerId(null);
       setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
-      
+
       // Clear the modal timeout
       if (modalTimeoutId) {
         clearTimeout(modalTimeoutId);
@@ -405,10 +427,10 @@ export default function Home() {
         setModalCountdownInterval(null);
       }
       setModalTimeRemaining(0);
-      
+
       // Reset toast flags so next person can get their notifications
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
-      
+
       // Refresh the queue to update positions and trigger next person's modal
       await fetchQueue();
     } catch (error) {
@@ -747,7 +769,11 @@ export default function Home() {
 
         // Show "charger ready" toast only once per queue entry
         if (toastShownFor.nextInLine !== userFirstInLine.id) {
-          addToast("Your charger is ready! Please plug in. You have 5 minutes to respond or you'll be moved back one spot.", "success", 0);
+          addToast(
+            "Your charger is ready! Please plug in. You have 5 minutes to respond or you'll be moved back one spot.",
+            "success",
+            0
+          );
           setToastShownFor((prev) => ({
             ...prev,
             nextInLine: userFirstInLine.id,
@@ -884,7 +910,8 @@ export default function Home() {
               <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
-                    Time remaining: {Math.floor(modalTimeRemaining / 60)}:{String(modalTimeRemaining % 60).padStart(2, '0')}
+                    Time remaining: {Math.floor(modalTimeRemaining / 60)}:
+                    {String(modalTimeRemaining % 60).padStart(2, "0")}
                   </span>
                 </div>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300 text-center mt-1">
@@ -902,14 +929,72 @@ export default function Home() {
               Please plug in your car and specify how long you'll use the
               charger (in minutes):
             </p>
-            <input
-              type="number"
-              min={10}
-              max={480}
-              value={durationInput}
-              onChange={(e) => setDurationInput(Number(e.target.value))}
-              className="w-full p-2 border rounded mb-4 dark:bg-gray-800 dark:text-white"
-            />
+            <div className="mb-4">
+              <input
+                type="text"
+                value={durationInput === 0 ? "" : durationInput.toString()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "") {
+                    setDurationInput(0);
+                  } else if (/^\d+$/.test(value)) {
+                    const numValue = parseInt(value, 10);
+                    if (numValue >= 1 && numValue <= 480) {
+                      setDurationInput(numValue);
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  if (value === "") {
+                    setDurationInput(60);
+                  }
+                }}
+                placeholder="Enter minutes (10-480)"
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              />
+              <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-gray-400">
+                <span>Min: 10 minutes</span>
+                <span>Max: 8 hours (480 min)</span>
+              </div>
+              <div className="mt-2 flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setDurationInput(30)}
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                >
+                  30min
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDurationInput(60)}
+                  className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors duration-200"
+                >
+                  1hr
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDurationInput(120)}
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                >
+                  2hr
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDurationInput(180)}
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                >
+                  3hr
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDurationInput(240)}
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                >
+                  4hr
+                </button>
+              </div>
+            </div>
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 rounded bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-600 cursor-pointer font-medium"
@@ -936,7 +1021,8 @@ export default function Home() {
               </button>
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 text-center">
-              In a meeting? Use "Move Back One Spot" to let the next person go first while staying near the front
+              In a meeting? Use "Move Back One Spot" to let the next person go
+              first while staying near the front
             </p>
             <p className="text-xs text-red-600 dark:text-red-400 mt-1 text-center">
               "Cancel & Leave Queue" will remove you completely
@@ -1032,11 +1118,7 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex justify-center mb-8">
-            <img 
-              src="/credo.png" 
-              alt="Credo" 
-              className="h-20 w-auto"
-            />
+            <img src="/credo.png" alt="Credo" className="h-20 w-auto" />
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-4">
             EV Charging Station
@@ -1223,9 +1305,9 @@ export default function Home() {
             Charger Layout
           </h2>
           <div className="flex justify-center">
-            <img 
-              src="/chargerLayout.svg" 
-              alt="Charger Layout" 
+            <img
+              src="/chargersLayout.png"
+              alt="Charger Layout"
               className="max-w-full h-auto max-h-96 rounded-lg shadow-md"
             />
           </div>
@@ -1297,7 +1379,7 @@ export default function Home() {
                     </div>
                     {charger.location && (
                       <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
-                        📍 {charger.location}
+                        {charger.location}
                       </p>
                     )}
                     {chargingEntry && (
@@ -1345,7 +1427,7 @@ export default function Home() {
             </h2>
             {waitingQueue.length === 0 ? (
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🎉</div>
+                {/* <div className="text-6xl mb-4"></div> */}
                 <p className="text-xl text-gray-600 dark:text-gray-400">
                   No one is waiting in the queue!
                 </p>
@@ -1430,14 +1512,15 @@ export default function Home() {
                             if (isChargerOccupied) {
                               return (
                                 <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                                  ⏳ Next in line! Waiting for current user to
+                                  Next in line! Waiting for current user to
                                   finish charging.
                                 </p>
                               );
                             } else {
                               return (
                                 <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                                  🎯 Next in line! Your charger is ready - you should see a popup to confirm.
+                                  Next in line! Your charger is ready - you
+                                  should see a popup to confirm.
                                 </p>
                               );
                             }

@@ -44,11 +44,7 @@ export default function AuthPage() {
         {/* Header with Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <img 
-              src="/credo.png" 
-              alt="Credo" 
-              className="h-16 w-auto"
-            />
+            <img src="/credo.png" alt="Credo" className="h-16 w-auto" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             EV Charging Station
