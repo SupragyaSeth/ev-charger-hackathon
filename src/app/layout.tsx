@@ -37,8 +37,8 @@ export default function RootLayout({
               <Image
                 src="/credo.png"   // Make sure this image is in /public/credo.png
                 alt="Credo Logo"
-                width={32}
-                height={32}
+                width={98}
+                height={98}
               />
               <span>EV Charger Manager</span>
             </div>
