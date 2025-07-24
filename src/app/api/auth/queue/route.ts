@@ -1,17 +1,30 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@/generated/prisma/queue/client"; // Adjust the import path as necessary
+import { PrismaClient } from "@/generated/prisma/queue/client";
 
 const prisma = new PrismaClient();
+
 /**
- * API route to handle adding a user to the queue for a specific charger.
- * 
- * @route POST /api/queue
- * @body { userId: number, chargerId: number }
- * @returns JSON response with queue entry or error message
- * 
- * Example request:
+ * GET /api/auth/queue
+ * Returns the current queue with all entries
+ */
+export async function GET() {
+  try {
+    const queueEntries = await prisma.queue.findMany({
+      orderBy: [{ chargerId: "asc" }, { position: "asc" }],
+    });
+
+    return NextResponse.json({ queue: queueEntries });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: "Failed to fetch queue" },
+      { status: 500 }
+    );
+  }
+}
+
 /**
- * POST /api/queue
+ * POST /api/auth/queue
  * Body: { userId: number, chargerId: number }
  * Adds user to queue for a specific charger
  */
