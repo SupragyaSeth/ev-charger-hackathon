@@ -3,17 +3,11 @@ generator client-2 {
   output   = "../src/generated/prisma/queue"
 }
 
-datasource db-2 {
+datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL_1")
 }
 
-model Charger {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  location  String?
-  queues    Queue[]
-}
 
 model Queue {
   id         Int      @id @default(autoincrement())
@@ -21,6 +15,8 @@ model Queue {
   createdAt  DateTime @default(now())
   userId     Int
   chargerId  Int
-
-  charger    Charger  @relation(fields: [chargerId], references: [id])
+  status     String   @default("waiting") // "waiting", "charging", "overtime"
+  durationMinutes Int? // How long the user will use the charger (in minutes)
+  chargingStartedAt DateTime? // When the user started charging
+  estimatedEndTime DateTime? // When charging should end
 }

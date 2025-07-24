@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "npx prisma generate --schema=prisma/schema.prisma && npx prisma generate --schema=prisma/route.prisma",
+    "db:migrate": "npx prisma migrate dev --schema=prisma/schema.prisma && npx prisma migrate dev --schema=prisma/route.prisma",
+    "db:push": "npx prisma db push --schema=prisma/schema.prisma && npx prisma db push --schema=prisma/route.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

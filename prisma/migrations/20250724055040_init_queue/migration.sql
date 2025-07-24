@@ -10,21 +10,12 @@ DROP TABLE "User";
 PRAGMA foreign_keys=on;
 
 -- CreateTable
-CREATE TABLE "Charger" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "name" TEXT NOT NULL,
-    "location" TEXT
-);
-
--- CreateTable
 CREATE TABLE "Queue" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "position" INTEGER NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" INTEGER NOT NULL,
     "chargerId" INTEGER NOT NULL,
-    CONSTRAINT "Queue_chargerId_fkey" FOREIGN KEY ("chargerId") REFERENCES "Charger" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "status" TEXT NOT NULL DEFAULT 'waiting',
+    "durationMinutes" INTEGER
 );
-
--- CreateIndex
-CREATE UNIQUE INDEX "Charger_name_key" ON "Charger"("name");

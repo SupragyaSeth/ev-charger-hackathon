@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ToastProvider } from "@/components/ToastProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,15 +29,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <nav className="flex justify-between items-center p-4 bg-gray-100 dark:bg-gray-900">
-          <div className="font-bold text-lg">EV Charger Manager</div>
-          <div className="flex gap-4">
-            <Link href="/">Home</Link>
-            <Link href="/auth/signin">Sign In</Link>
-            <Link href="/auth/signup">Sign Up</Link>
-          </div>
-        </nav>
-        {children}
+        <ToastProvider>
+          <nav className="flex justify-between items-center p-4 bg-gray-100 dark:bg-gray-900">
+            <div className="font-bold text-lg">EV Charger Manager</div>
+            <div className="flex gap-4">
+              <Link href="/">Home</Link>
+              <Link href="/auth">Sign In / Sign Up</Link>
+            </div>
+          </nav>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
