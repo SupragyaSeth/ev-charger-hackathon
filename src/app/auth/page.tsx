@@ -39,27 +39,34 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-8 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-8 flex items-center justify-center">
       <div className="w-full max-w-md">
-        {/* Header */}
+        {/* Header with Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-2">
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/credo.png" 
+              alt="Credo" 
+              className="h-16 w-auto"
+            />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             EV Charging Station
           </h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Welcome! Please sign in to continue.
+            Please sign in to access the charging queue
           </p>
         </div>
 
         {/* Auth Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
           {/* Tab Buttons */}
-          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mb-6">
+          <div className="flex bg-gray-50 dark:bg-gray-700 rounded-lg p-1 mb-6">
             <button
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
                 mode === "signin"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-500"
+                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-600/50"
               }`}
               onClick={() => {
                 setMode("signin");
@@ -69,10 +76,10 @@ export default function AuthPage() {
               Sign In
             </button>
             <button
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
                 mode === "signup"
-                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-500"
+                  : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-600/50"
               }`}
               onClick={() => {
                 setMode("signup");
@@ -131,7 +138,7 @@ export default function AuthPage() {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white py-3 px-4 rounded-lg font-semibold shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? (

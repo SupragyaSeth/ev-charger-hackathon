@@ -817,14 +817,14 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-8 relative">
+    <div className="min-h-screen bg-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-8 relative">
       {/* Profile Button & Popup */}
       <div className="absolute top-6 right-8 z-50" ref={profileRef}>
         <button
-          className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 px-3 py-1 rounded-full shadow hover:shadow-lg border border-gray-200 dark:border-gray-700 transition cursor-pointer"
+          className="flex items-center gap-3 bg-white/90 dark:bg-gray-800/90 px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md backdrop-blur-sm cursor-pointer"
           onClick={() => setProfileOpen((v) => !v)}
         >
-          <span className="text-gray-800 dark:text-white font-medium text-base truncate max-w-[120px]">
+          <span className="text-gray-800 dark:text-white font-medium text-sm truncate max-w-[120px]">
             {user?.name || "User"}
           </span>
           <img
@@ -832,39 +832,39 @@ export default function Home() {
               user?.photo ||
               "https://ui-avatars.com/api/?name=" +
                 encodeURIComponent(user?.name || "U") +
-                "&background=0D8ABC&color=fff"
+                "&background=4F46E5&color=fff"
             }
             alt="Profile"
-            className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600 object-cover bg-gray-100"
+            className="w-8 h-8 rounded-full border-2 border-gray-200 dark:border-gray-600 object-cover"
           />
         </button>
         {profileOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 flex flex-col items-center animate-fade-in z-50">
+          <div className="absolute right-0 mt-3 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 flex flex-col items-center z-50">
             <img
               src={
                 user?.photo ||
                 "https://ui-avatars.com/api/?name=" +
                   encodeURIComponent(user?.name || "U") +
-                  "&background=0D8ABC&color=fff"
+                  "&background=4F46E5&color=fff"
               }
               alt="Profile Large"
-              className="w-20 h-20 rounded-full border-2 border-blue-400 mb-3 object-cover bg-gray-100"
+              className="w-20 h-20 rounded-full border-3 border-blue-100 mb-4 object-cover"
             />
-            <div className="text-lg font-bold text-gray-800 dark:text-white mb-1">
+            <div className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
               {user?.name || "User"}
             </div>
-            <div className="text-gray-500 dark:text-gray-300 text-sm mb-4">
+            <div className="text-gray-500 dark:text-gray-300 text-sm mb-6">
               {user?.email || "No email"}
             </div>
-            <div className="flex gap-2 w-full">
+            <div className="flex gap-3 w-full">
               <button
-                className="flex-1 px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                className="flex-1 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 cursor-pointer"
                 onClick={() => setProfileOpen(false)}
               >
                 Close
               </button>
               <button
-                className="flex-1 px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors cursor-pointer"
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors duration-200 cursor-pointer"
                 onClick={signOut}
               >
                 Sign Out
@@ -884,7 +884,7 @@ export default function Home() {
               <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
-                    ⏰ Time remaining: {Math.floor(modalTimeRemaining / 60)}:{String(modalTimeRemaining % 60).padStart(2, '0')}
+                    Time remaining: {Math.floor(modalTimeRemaining / 60)}:{String(modalTimeRemaining % 60).padStart(2, '0')}
                   </span>
                 </div>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300 text-center mt-1">
@@ -917,7 +917,7 @@ export default function Home() {
                 disabled={loading}
                 title="Move back one spot in the queue - useful if you're in a meeting or can't get to your car right now"
               >
-                📋 Move Back One Spot
+                Move Back One Spot
               </button>
               <button
                 className="px-4 py-2 rounded bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-600 cursor-pointer font-medium"
@@ -925,7 +925,7 @@ export default function Home() {
                 disabled={loading}
                 title="This will remove you from the queue completely and give your spot to the next person"
               >
-                ❌ Cancel & Leave Queue
+                Cancel & Leave Queue
               </button>
               <button
                 className="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700 cursor-pointer"
@@ -936,10 +936,10 @@ export default function Home() {
               </button>
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 text-center">
-              💡 In a meeting? Use "Move Back One Spot" to let the next person go first while staying near the front
+              In a meeting? Use "Move Back One Spot" to let the next person go first while staying near the front
             </p>
             <p className="text-xs text-red-600 dark:text-red-400 mt-1 text-center">
-              ⚠️ "Cancel & Leave Queue" will remove you completely
+              "Cancel & Leave Queue" will remove you completely
             </p>
           </div>
         </div>
@@ -956,8 +956,8 @@ export default function Home() {
               }`}
             >
               {completingEntry.status === "overtime"
-                ? "⚠️ Charging Time Expired!"
-                : "🔌 Confirm Completion"}
+                ? "Charging Time Expired!"
+                : "Confirm Completion"}
             </h2>
             <p className="mb-2 text-gray-600 dark:text-gray-300">
               Charger:{" "}
@@ -1030,8 +1030,15 @@ export default function Home() {
       )}
       <main className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-white mb-4">
+        <div className="text-center mb-12">
+          <div className="flex justify-center mb-8">
+            <img 
+              src="/credo.png" 
+              alt="Credo" 
+              className="h-20 w-auto"
+            />
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-4">
             EV Charging Station
           </h1>
           <CurrentTimeDisplay />
@@ -1043,14 +1050,14 @@ export default function Home() {
             {/* Only show Join Queue if user is not in queue */}
             {user?.id && !queue.find((entry) => entry.userId === user.id) && (
               <button
-                className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 onClick={joinQueue}
                 disabled={loading}
               >
                 {loading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Joining...
+                    Joining Queue...
                   </div>
                 ) : (
                   "Join Queue"
@@ -1065,14 +1072,14 @@ export default function Home() {
                   entry.userId === user.id && entry.status === "waiting"
               ) && (
                 <button
-                  className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
+                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   onClick={leaveQueue}
                   disabled={loading}
                 >
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Leaving...
+                      Leaving Queue...
                     </div>
                   ) : (
                     "Leave Queue"
@@ -1089,7 +1096,7 @@ export default function Home() {
               ) &&
               modalDismissedFor.completionModal && (
                 <button
-                  className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => {
                     const userChargingEntry = queue.find(
                       (entry) =>
@@ -1108,7 +1115,7 @@ export default function Home() {
                   }}
                   disabled={loading}
                 >
-                  🔌 Complete Charging
+                  Complete Charging
                 </button>
               )}
 
@@ -1126,7 +1133,7 @@ export default function Home() {
                 if (userChargingEntry && !showCompletionModal) {
                   return (
                     <button
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => {
                         setCompletingEntry(userChargingEntry);
                         setShowCompletionModal(true);
@@ -1137,7 +1144,7 @@ export default function Home() {
                       }}
                       disabled={loading}
                     >
-                      ✅ End Session Early
+                      End Session Early
                     </button>
                   );
                 }
@@ -1176,8 +1183,8 @@ export default function Home() {
                         }`}
                       >
                         {userChargingEntry.status === "overtime"
-                          ? "⚠️ OVERTIME"
-                          : "🔌 CHARGING"}
+                          ? "OVERTIME"
+                          : "CHARGING"}
                       </span>
                       <span className="text-gray-600 dark:text-gray-300">
                         on {getChargerName(userChargingEntry.chargerId)}
@@ -1208,6 +1215,20 @@ export default function Home() {
               }
               return null;
             })()}
+        </div>
+
+        {/* Charger Layout */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
+            Charger Layout
+          </h2>
+          <div className="flex justify-center">
+            <img 
+              src="/chargerLayout.svg" 
+              alt="Charger Layout" 
+              className="max-w-full h-auto max-h-96 rounded-lg shadow-md"
+            />
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
@@ -1384,11 +1405,11 @@ export default function Home() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                         <div className="flex items-center text-gray-600 dark:text-gray-400">
-                          <span className="mr-2">🕐</span>
+                          <span className="mr-2 text-blue-500">●</span>
                           Estimated start: {estimatedStart.toLocaleTimeString()}
                         </div>
                         <div className="flex items-center text-gray-600 dark:text-gray-400">
-                          <span className="mr-2">⏱️</span>
+                          <span className="mr-2 text-green-500">●</span>
                           Added:{" "}
                           {new Date(entry.createdAt).toLocaleTimeString()}
                         </div>
