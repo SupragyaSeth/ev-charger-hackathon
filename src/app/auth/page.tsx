@@ -100,7 +100,7 @@ export default function AuthPage() {
                 />
               </div>
             )}
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email Address
@@ -114,7 +114,7 @@ export default function AuthPage() {
                 required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Password
@@ -128,8 +128,8 @@ export default function AuthPage() {
                 required
               />
             </div>
-            
-            <button 
+
+            <button
               type="submit"
               className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white py-3 px-4 rounded-lg font-semibold shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               disabled={loading}
@@ -139,8 +139,10 @@ export default function AuthPage() {
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                   {mode === "signup" ? "Creating Account..." : "Signing In..."}
                 </div>
+              ) : mode === "signup" ? (
+                "Create Account"
               ) : (
-                mode === "signup" ? "Create Account" : "Sign In"
+                "Sign In"
               )}
             </button>
           </form>
@@ -158,10 +160,9 @@ export default function AuthPage() {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {mode === "signup" 
+            {mode === "signup"
               ? "By creating an account, you agree to our terms of service."
-              : "Need help? Contact your system administrator."
-            }
+              : "Need help? Contact your system administrator."}
           </p>
         </div>
       </div>
