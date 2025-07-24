@@ -1,6 +1,7 @@
 import { queuePrisma, authPrisma } from "./prisma";
 import { QueueEntry } from "@/types";
 import { TimerService } from "./timer-service";
+import { EmailService } from "./email-service";
 
 export class QueueService {
   /**
@@ -137,11 +138,37 @@ export class QueueService {
       throw new Error("No active charging session found");
     }
 
+    // Calculate charging duration
+    const chargingStartTime = chargingEntry.chargingStartedAt
+      ? new Date(chargingEntry.chargingStartedAt)
+      : new Date();
+    const chargingDuration = Math.floor(
+      (Date.now() - chargingStartTime.getTime()) / (1000 * 60)
+    ); // in minutes
+
+    // Send completion email to the user
+    try {
+      const userInfo = await this.getUserInfo(userId);
+      const chargerName = this.getChargerName(chargerId);
+
+      await EmailService.sendChargingCompleteNotification(
+        userInfo.email,
+        userInfo.name,
+        chargerName,
+        chargingDuration
+      );
+    } catch (error) {
+      console.error("Failed to send completion email:", error);
+    }
+
     // Clear the timer and remove from queue
     await TimerService.completeCharging(chargingEntry.id);
 
     // Update positions for remaining users in queue
     await this.reorderQueue(chargerId);
+
+    // Notify next user in queue that charger is ready
+    await this.notifyNextUserInQueue(chargerId);
   }
 
   /**
@@ -177,15 +204,23 @@ export class QueueService {
       throw new Error("User not found in queue");
     }
 
+    // Store charger IDs and whether user was first in line for notification
+    const chargerIds = [...new Set(entries.map((e: any) => e.chargerId))];
+    const wasFirstInLine = entries.some((e: any) => e.position === 1);
+
     // Remove user entries
     await queuePrisma.queue.deleteMany({
       where: { userId, status: "waiting" },
     });
 
     // Reorder queues for affected chargers
-    const chargerIds = [...new Set(entries.map((e: any) => e.chargerId))];
     for (const chargerId of chargerIds) {
       await this.reorderQueue(Number(chargerId));
+
+      // If user was first in line, notify the new first person
+      if (wasFirstInLine) {
+        await this.notifyNextUserInQueue(Number(chargerId));
+      }
     }
   }
 
@@ -296,6 +331,75 @@ export class QueueService {
         where: { id: waitingEntries[i].id },
         data: { position: i + 1 },
       });
+    }
+  }
+
+  /**
+   * Get user information for email notifications
+   */
+  private static async getUserInfo(
+    userId: number
+  ): Promise<{ name: string; email: string }> {
+    const user = await authPrisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    });
+
+    if (!user || !user.email) {
+      throw new Error("User not found or email not available");
+    }
+
+    return {
+      name: user.name || "User",
+      email: user.email,
+    };
+  }
+
+  /**
+   * Get charger name
+   */
+  private static getChargerName(chargerId: number): string {
+    const chargerNames = {
+      1: "Charger A",
+      2: "Charger B",
+      3: "Charger C",
+      4: "Charger D",
+      5: "Charger E",
+      6: "Charger F",
+      7: "Charger G",
+      8: "Charger H",
+    };
+    return (
+      chargerNames[chargerId as keyof typeof chargerNames] ||
+      `Charger ${chargerId}`
+    );
+  }
+
+  /**
+   * Send notification to next user in queue that their charger is ready
+   */
+  static async notifyNextUserInQueue(chargerId: number): Promise<void> {
+    try {
+      const nextUser = await queuePrisma.queue.findFirst({
+        where: { chargerId, status: "waiting", position: 1 },
+      });
+
+      if (nextUser) {
+        const userInfo = await this.getUserInfo(nextUser.userId);
+        const chargerName = this.getChargerName(chargerId);
+
+        await EmailService.sendChargerReadyNotification(
+          userInfo.email,
+          userInfo.name,
+          chargerName
+        );
+
+        console.log(
+          `Email notification sent to ${userInfo.email} for ${chargerName}`
+        );
+      }
+    } catch (error) {
+      console.error("Failed to notify next user in queue:", error);
     }
   }
 }

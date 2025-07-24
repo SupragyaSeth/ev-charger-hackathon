@@ -156,3 +156,29 @@ export const authApi = {
     return apiCall(`/api/auth/user?${param}`);
   },
 };
+
+/**
+ * Email-specific API calls
+ */
+export const emailApi = {
+  /**
+   * Send test email
+   */
+  sendTestEmail: async (
+    type: "charger-ready" | "almost-complete" | "expired" | "complete",
+    userEmail: string,
+    userName?: string
+  ) => {
+    return apiCall("/api/email/test", {
+      method: "POST",
+      body: JSON.stringify({ type, userEmail, userName }),
+    });
+  },
+
+  /**
+   * Get email configuration status
+   */
+  getEmailConfig: async () => {
+    return apiCall("/api/email/test");
+  },
+};

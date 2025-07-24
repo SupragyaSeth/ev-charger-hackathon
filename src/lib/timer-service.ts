@@ -1,4 +1,5 @@
-import { queuePrisma } from "./prisma";
+import { queuePrisma, authPrisma } from "./prisma";
+import { EmailService } from "./email-service";
 
 export class TimerService {
   private static intervals = new Map<number, NodeJS.Timeout>();
@@ -38,6 +39,36 @@ export class TimerService {
     // Clear any existing timer for this entry
     this.clearTimer(queueEntryId);
 
+    // Set up "almost complete" notification timer (2 minutes before expiry)
+    if (durationMinutes > 2) {
+      const almostCompleteTime = (durationMinutes - 2) * 60 * 1000;
+      setTimeout(async () => {
+        try {
+          const entry = await queuePrisma.queue.findUnique({
+            where: { id: queueEntryId },
+          });
+
+          if (entry && entry.status === "charging") {
+            const userInfo = await this.getUserInfo(entry.userId);
+            const chargerName = this.getChargerName(entry.chargerId);
+
+            await EmailService.sendChargingAlmostCompleteNotification(
+              userInfo.email,
+              userInfo.name,
+              chargerName,
+              2
+            );
+
+            console.log(
+              `Almost complete email sent to ${userInfo.email} for ${chargerName}`
+            );
+          }
+        } catch (error) {
+          console.error("Failed to send almost complete email:", error);
+        }
+      }, almostCompleteTime);
+    }
+
     // Set up a timer to mark as overtime when duration expires
     const timeoutId = setTimeout(async () => {
       try {
@@ -57,6 +88,25 @@ export class TimerService {
           });
 
           console.log(`Queue entry ${queueEntryId} marked as overtime`);
+
+          // Send overtime email notification
+          try {
+            const userInfo = await this.getUserInfo(entry.userId);
+            const chargerName = this.getChargerName(entry.chargerId);
+
+            await EmailService.sendChargingExpiredNotification(
+              userInfo.email,
+              userInfo.name,
+              chargerName,
+              0 // Initially 0 minutes over
+            );
+
+            console.log(
+              `Overtime email sent to ${userInfo.email} for ${chargerName}`
+            );
+          } catch (emailError) {
+            console.error("Failed to send overtime email:", emailError);
+          }
         }
       } catch (error) {
         console.error(
@@ -171,5 +221,46 @@ export class TimerService {
     } catch (error) {
       console.error("Error initializing existing timers:", error);
     }
+  }
+
+  /**
+   * Get user information for email notifications
+   */
+  private static async getUserInfo(
+    userId: number
+  ): Promise<{ name: string; email: string }> {
+    const user = await authPrisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    });
+
+    if (!user || !user.email) {
+      throw new Error("User not found or email not available");
+    }
+
+    return {
+      name: user.name || "User",
+      email: user.email,
+    };
+  }
+
+  /**
+   * Get charger name
+   */
+  private static getChargerName(chargerId: number): string {
+    const chargerNames = {
+      1: "Charger A",
+      2: "Charger B",
+      3: "Charger C",
+      4: "Charger D",
+      5: "Charger E",
+      6: "Charger F",
+      7: "Charger G",
+      8: "Charger H",
+    };
+    return (
+      chargerNames[chargerId as keyof typeof chargerNames] ||
+      `Charger ${chargerId}`
+    );
   }
 }
