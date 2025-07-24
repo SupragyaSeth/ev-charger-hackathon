@@ -70,6 +70,20 @@ export class QueueService {
     chargerId: number,
     durationMinutes: number
   ): Promise<QueueEntry> {
+    // Check if charger is currently occupied
+    const occupiedEntry = await queuePrisma.queue.findFirst({
+      where: {
+        chargerId,
+        status: { in: ["charging", "overtime"] },
+      },
+    });
+
+    if (occupiedEntry) {
+      throw new Error(
+        "Charger is currently occupied. Please wait for the current user to finish."
+      );
+    }
+
     // Find the first waiting user in queue for this charger
     const queueEntry = await queuePrisma.queue.findFirst({
       where: { chargerId, status: "waiting" },
@@ -195,7 +209,7 @@ export class QueueService {
       const chargingCount = await queuePrisma.queue.count({
         where: { chargerId, status: { in: ["charging", "overtime"] } },
       });
-      
+
       const waitingCount = await queuePrisma.queue.count({
         where: { chargerId, status: "waiting" },
       });
@@ -213,10 +227,10 @@ export class QueueService {
       // Available chargers first
       if (a.isAvailable && !b.isAvailable) return -1;
       if (!a.isAvailable && b.isAvailable) return 1;
-      
+
       // Then by shortest total queue
       if (a.totalQueue !== b.totalQueue) return a.totalQueue - b.totalQueue;
-      
+
       // Finally by charger ID as tiebreaker
       return a.chargerId - b.chargerId;
     });

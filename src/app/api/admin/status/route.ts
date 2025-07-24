@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { QueueService } from "@/lib/queue-service";
-import { authPrisma } from "@/lib/prisma";
+import { authPrisma, queuePrisma } from "@/lib/prisma";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -56,9 +56,21 @@ export const POST = withErrorHandler(async (req: Request) => {
 
   switch (action) {
     case "clear_queue":
-      // Clear all waiting entries (keep charging)
-      await authPrisma.$executeRaw`DELETE FROM Queue WHERE status = 'waiting'`;
+      // Clear all queue entries
+      await queuePrisma.queue.deleteMany({});
       return createSuccessResponse(null, "Queue cleared successfully");
+
+    case "clear_waiting":
+      // Clear only waiting entries (keep charging)
+      await queuePrisma.queue.deleteMany({
+        where: { status: "waiting" }
+      });
+      return createSuccessResponse(null, "Waiting queue cleared successfully");
+
+    case "clear_all_including_charging":
+      // Clear ALL entries including those currently charging
+      await queuePrisma.queue.deleteMany({});
+      return createSuccessResponse(null, "All queue entries cleared successfully");
 
     case "reset_positions":
       // Reset positions for all chargers
@@ -67,11 +79,10 @@ export const POST = withErrorHandler(async (req: Request) => {
         const waitingEntries = entries.filter((e) => e.status === "waiting");
 
         for (let i = 0; i < waitingEntries.length; i++) {
-          await authPrisma.$executeRaw`
-            UPDATE Queue 
-            SET position = ${i + 1} 
-            WHERE id = ${waitingEntries[i].id}
-          `;
+          await queuePrisma.queue.update({
+            where: { id: waitingEntries[i].id },
+            data: { position: i + 1 }
+          });
         }
       }
       return createSuccessResponse(null, "Positions reset successfully");

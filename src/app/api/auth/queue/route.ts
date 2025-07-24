@@ -38,9 +38,9 @@ export const PATCH = withErrorHandler(async (req: Request) => {
  */
 export const GET = withErrorHandler(async (req: Request) => {
   const url = new URL(req.url);
-  const action = url.searchParams.get('action');
+  const action = url.searchParams.get("action");
 
-  if (action === 'best-charger') {
+  if (action === "best-charger") {
     const bestChargerId = await QueueService.findBestCharger();
     return createSuccessResponse({ chargerId: bestChargerId });
   }

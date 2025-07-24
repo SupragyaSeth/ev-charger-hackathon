@@ -230,7 +230,7 @@ export default function Home() {
       console.log(`[joinQueue] Assigning user to charger ${bestChargerId}`);
 
       await queueApi.joinQueue(user.id, bestChargerId);
-      setMessage(`You joined the queue for Charger ${bestChargerId}!`);
+      setMessage(`You joined the queue!`);
       addToast(
         `Successfully joined the queue for Charger ${bestChargerId}!`,
         "success"
@@ -567,14 +567,33 @@ export default function Home() {
     );
     console.log("[DEBUG] Waiting entries:", currentWaitingQueue);
 
-    // Check if user is first in line for any charger
+    // Check if user is first in line for any charger AND that charger is available
     const userFirstInLine = currentWaitingQueue.find(
       (entry) => entry.userId === user.id && entry.position === 1
     );
 
     console.log("[DEBUG] User first in line:", userFirstInLine);
 
+    // Only show modal if user is first in line AND the charger is actually available
+    let canStartCharging = false;
     if (userFirstInLine) {
+      // Check if the charger is occupied (someone is charging or in overtime)
+      const isChargerOccupied = [...chargingQueue, ...overtimeQueue].some(
+        (entry) => entry.chargerId === userFirstInLine.chargerId
+      );
+      canStartCharging = !isChargerOccupied;
+
+      console.log(
+        "[DEBUG] Charger",
+        userFirstInLine.chargerId,
+        "occupied:",
+        isChargerOccupied,
+        "can start:",
+        canStartCharging
+      );
+    }
+
+    if (userFirstInLine && canStartCharging) {
       if (!modalDismissedFor.durationModal) {
         setShowDurationModal(true);
         setConfirmingChargerId(userFirstInLine.chargerId);
@@ -583,13 +602,31 @@ export default function Home() {
         setToastShownFor((prev) => {
           if (prev.nextInLine !== userFirstInLine.id) {
             setTimeout(() => {
-              addToast("You're next! Prepare to plug in.", "info", 0);
+              addToast("Your charger is ready! Please plug in.", "success", 0);
             }, 0);
             return { ...prev, nextInLine: userFirstInLine.id };
           }
           return prev;
         });
       }
+    } else if (userFirstInLine && !canStartCharging) {
+      // User is first in line but charger is still occupied - just show toast
+      setToastShownFor((prev) => {
+        if (prev.nextInLine !== userFirstInLine.id) {
+          setTimeout(() => {
+            addToast(
+              "You're next in line! Waiting for charger to become available.",
+              "info",
+              0
+            );
+          }, 0);
+          return { ...prev, nextInLine: userFirstInLine.id };
+        }
+        return prev;
+      });
+      // Don't show the duration modal yet
+      setShowDurationModal(false);
+      setConfirmingChargerId(null);
     } else if (!userChargingEntry) {
       setShowDurationModal(false);
       setConfirmingChargerId(null);
@@ -621,7 +658,7 @@ export default function Home() {
       {/* Profile Button & Popup */}
       <div className="absolute top-6 right-8 z-50" ref={profileRef}>
         <button
-          className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 px-3 py-1 rounded-full shadow hover:shadow-lg border border-gray-200 dark:border-gray-700 transition"
+          className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 px-3 py-1 rounded-full shadow hover:shadow-lg border border-gray-200 dark:border-gray-700 transition cursor-pointer"
           onClick={() => setProfileOpen((v) => !v)}
         >
           <span className="text-gray-800 dark:text-white font-medium text-base truncate max-w-[120px]">
@@ -658,13 +695,13 @@ export default function Home() {
             </div>
             <div className="flex gap-2 w-full">
               <button
-                className="flex-1 px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                className="flex-1 px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors cursor-pointer"
                 onClick={() => setProfileOpen(false)}
               >
                 Close
               </button>
               <button
-                className="flex-1 px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                className="flex-1 px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors cursor-pointer"
                 onClick={signOut}
               >
                 Sign Out
@@ -700,7 +737,7 @@ export default function Home() {
             />
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 cursor-pointer"
                 onClick={() => {
                   setShowDurationModal(false);
                   setModalDismissedFor((prev) => ({
@@ -713,7 +750,7 @@ export default function Home() {
                 Cancel
               </button>
               <button
-                className="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700"
+                className="px-4 py-2 rounded bg-green-600 text-white font-semibold hover:bg-green-700 cursor-pointer"
                 onClick={confirmCharging}
                 disabled={loading}
               >
@@ -775,7 +812,7 @@ export default function Home() {
             )}
             <div className="flex justify-end gap-2">
               <button
-                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 cursor-pointer"
                 onClick={() => {
                   setShowCompletionModal(false);
                   setModalDismissedFor((prev) => ({
@@ -788,7 +825,7 @@ export default function Home() {
                 Not Yet
               </button>
               <button
-                className={`px-4 py-2 rounded text-white font-semibold ${
+                className={`px-4 py-2 rounded text-white font-semibold cursor-pointer ${
                   completingEntry.status === "overtime"
                     ? "bg-red-600 hover:bg-red-700"
                     : "bg-blue-600 hover:bg-blue-700"
@@ -822,7 +859,7 @@ export default function Home() {
             {/* Only show Join Queue if user is not in queue */}
             {user?.id && !queue.find((entry) => entry.userId === user.id) && (
               <button
-                className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                 onClick={joinQueue}
                 disabled={loading}
               >
@@ -844,7 +881,7 @@ export default function Home() {
                   entry.userId === user.id && entry.status === "waiting"
               ) && (
                 <button
-                  className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg transform transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                   onClick={leaveQueue}
                   disabled={loading}
                 >
@@ -1175,10 +1212,32 @@ export default function Home() {
 
                       {index === 0 && (
                         <div className="mt-3 px-3 py-2 bg-green-100 dark:bg-green-800 rounded-lg">
-                          <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                            🎯 Next in line! You'll be notified when your
-                            charger is available.
-                          </p>
+                          {(() => {
+                            // Check if the charger is occupied
+                            const isChargerOccupied = [
+                              ...chargingQueue,
+                              ...overtimeQueue,
+                            ].some(
+                              (occupiedEntry) =>
+                                occupiedEntry.chargerId === entry.chargerId
+                            );
+
+                            if (isChargerOccupied) {
+                              return (
+                                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                                  ⏳ Next in line! Waiting for current user to
+                                  finish charging.
+                                </p>
+                              );
+                            } else {
+                              return (
+                                <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                                  🎯 Next in line! Your charger is ready - you
+                                  should see a popup to confirm.
+                                </p>
+                              );
+                            }
+                          })()}
                         </div>
                       )}
                     </div>
