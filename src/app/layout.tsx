@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ToastProvider";
+import Image from "next/image"; // Import Next.js Image component
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,7 +32,17 @@ export default function RootLayout({
       >
         <ToastProvider>
           <nav className="flex justify-between items-center p-4 bg-gray-100 dark:bg-gray-900">
-            <div className="font-bold text-lg">EV Charger Manager</div>
+            {/* Wrap header text and image */}
+            <div className="flex items-center gap-2 font-bold text-lg">
+              <Image
+                src="/credo.png"   // Make sure this image is in /public/credo.png
+                alt="Credo Logo"
+                width={32}
+                height={32}
+              />
+              <span>EV Charger Manager</span>
+            </div>
+
             <div className="flex gap-4">
               <Link href="/">Home</Link>
               <Link href="/auth">Sign In / Sign Up</Link>
