@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { authPrisma } from "@/lib/prisma";
+import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -18,20 +18,20 @@ export const GET = withErrorHandler(async (req: NextRequest) => {
 
   let user = null;
   if (id) {
-    user = await authPrisma.user.findUnique({
-      where: { id: Number(id) },
-      select: { id: true, name: true, email: true },
-    });
+    user = await SupabaseService.findUserById(Number(id));
   } else if (email) {
-    user = await authPrisma.user.findUnique({
-      where: { email: email },
-      select: { id: true, name: true, email: true },
-    });
+    user = await SupabaseService.findUserByEmail(email);
   }
 
   if (!user) {
     return createErrorResponse("User not found", 404);
   }
 
-  return createSuccessResponse({ user });
+  return createSuccessResponse({
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    },
+  });
 });

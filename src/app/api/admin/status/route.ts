@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { QueueService } from "@/lib/queue-service";
-import { authPrisma, queuePrisma } from "@/lib/prisma";
+import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -13,9 +13,7 @@ import {
  */
 export const GET = withErrorHandler(async () => {
   const queue = await QueueService.getQueue();
-  const users = await authPrisma.user.findMany({
-    select: { id: true, name: true, email: true, createdAt: true },
-  });
+  const users = await SupabaseService.getAllUsers();
 
   // Group queue by charger
   const queueByCharger: Record<number, any[]> = {};
@@ -57,19 +55,19 @@ export const POST = withErrorHandler(async (req: Request) => {
   switch (action) {
     case "clear_queue":
       // Clear all queue entries
-      await queuePrisma.queue.deleteMany({});
+      await SupabaseService.clearAllQueue();
       return createSuccessResponse(null, "Queue cleared successfully");
 
     case "clear_waiting":
       // Clear only waiting entries (keep charging)
-      await queuePrisma.queue.deleteMany({
-        where: { status: "waiting" },
+      await SupabaseService.deleteQueueEntries({
+        status: "waiting",
       });
       return createSuccessResponse(null, "Waiting queue cleared successfully");
 
     case "clear_all_including_charging":
       // Clear ALL entries including those currently charging
-      await queuePrisma.queue.deleteMany({});
+      await SupabaseService.clearAllQueue();
       return createSuccessResponse(
         null,
         "All queue entries cleared successfully"
@@ -82,9 +80,8 @@ export const POST = withErrorHandler(async (req: Request) => {
         const waitingEntries = entries.filter((e) => e.status === "waiting");
 
         for (let i = 0; i < waitingEntries.length; i++) {
-          await queuePrisma.queue.update({
-            where: { id: waitingEntries[i].id },
-            data: { position: i + 1 },
+          await SupabaseService.updateQueueEntry(waitingEntries[i].id, {
+            position: i + 1,
           });
         }
       }

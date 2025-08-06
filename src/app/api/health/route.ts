@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authPrisma, queuePrisma } from "@/lib/prisma";
+import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -12,20 +12,17 @@ import {
  */
 export const GET = withErrorHandler(async () => {
   // Test database connections
-  const authCount = await authPrisma.user.count();
-  const queueCount = await queuePrisma.queue.count();
+  const users = await SupabaseService.getAllUsers();
+  const queue = await SupabaseService.findQueueEntries();
 
   const healthData = {
     status: "healthy",
     timestamp: new Date().toISOString(),
     databases: {
-      auth: {
+      supabase: {
         connected: true,
-        userCount: authCount,
-      },
-      queue: {
-        connected: true,
-        queueCount: queueCount,
+        userCount: users.length,
+        queueCount: queue.length,
       },
     },
     environment: process.env.NODE_ENV,

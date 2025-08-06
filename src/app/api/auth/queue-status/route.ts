@@ -17,27 +17,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const queue = await QueueService.getQueue();
-
-    // Add remaining time for charging sessions
-    const queueWithTimers = await Promise.all(
-      queue.map(async (entry) => {
-        if (entry.status === "charging" || entry.status === "overtime") {
-          const remainingSeconds = await TimerService.getRemainingTime(
-            entry.id
-          );
-          return {
-            ...entry,
-            remainingSeconds,
-          };
-        }
-        return entry;
-      })
-    );
+    // Get queue with enhanced estimated times
+    const queueWithEstimatedTimes = await QueueService.getQueueWithEstimatedTimes();
 
     return NextResponse.json({
       success: true,
-      data: { queue: queueWithTimers },
+      data: { queue: queueWithEstimatedTimes },
     });
   } catch (error) {
     console.error("Queue status error:", error);

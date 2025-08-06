@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authPrisma } from "@/lib/prisma";
+import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -20,18 +20,17 @@ export const POST = withErrorHandler(async (req: Request) => {
   }
 
   // Fetch users by IDs
-  const users = await authPrisma.user.findMany({
-    where: {
-      id: {
-        in: userIds.map((id) => Number(id)),
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-    },
-  });
+  const users = [];
+  for (const id of userIds) {
+    const user = await SupabaseService.findUserById(Number(id));
+    if (user) {
+      users.push({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      });
+    }
+  }
 
   return createSuccessResponse({ users });
 });

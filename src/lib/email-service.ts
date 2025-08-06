@@ -1,13 +1,15 @@
 import nodemailer from "nodemailer";
 
-// Email configuration - you'll want to set these in environment variables
+// Email configuration - using Ethereal test account for development
 const EMAIL_CONFIG = {
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  host: process.env.SMTP_HOST || "smtp.ethereal.email",
   port: parseInt(process.env.SMTP_PORT || "587"),
   secure: false, // true for 465, false for other ports
   auth: {
-    user: process.env.SMTP_USER || "", // your email
-    pass: process.env.SMTP_PASS || "", // your app password
+
+    //NOTE: will put these in .env file later, DONT PUSH TO REPO WITH THESE CREDENTIALS
+    user: process.env.SMTP_USER || "bert.dubuque19@ethereal.email", 
+    pass: process.env.SMTP_PASS || "ycxyAFDCNT6KmeEa8P", 
   },
 };
 
@@ -32,7 +34,7 @@ export class EmailService {
       }
 
       const mailOptions = {
-        from: `"EV Charging Station" <${EMAIL_CONFIG.auth.user}>`,
+        from: `"EV Charging Station" <bert.dubuque19@ethereal.email>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -40,7 +42,16 @@ export class EmailService {
       };
 
       const info = await transporter.sendMail(mailOptions);
-      console.log("Email sent successfully:", info.messageId);
+      console.log("✅ Email sent successfully!");
+      console.log(`📧 Message ID: ${info.messageId}`);
+
+      // For Ethereal emails, provide the preview URL
+      if (EMAIL_CONFIG.host === "smtp.ethereal.email") {
+        const previewUrl = nodemailer.getTestMessageUrl(info);
+        if (previewUrl) {
+          console.log(`🔗 Preview email at: ${previewUrl}`);
+        }
+      }
     } catch (error) {
       console.error("Failed to send email:", error);
       throw new Error("Email delivery failed");
@@ -222,6 +233,48 @@ export class EmailService {
 
     await this.sendEmail({
       to: userEmail,
+      subject,
+      html,
+    });
+  }
+
+  /**
+   * Test email functionality with Ethereal
+   */
+  static async sendTestEmail(
+    testEmail: string = "test@example.com"
+  ): Promise<void> {
+    const subject = "🧪 EV Charging Station - Email Test";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2563eb; margin: 0;">EV Charging Station</h1>
+        </div>
+        
+        <div style="background-color: #f0f9ff; border-left: 4px solid #2563eb; padding: 20px; margin-bottom: 20px;">
+          <h2 style="color: #1e40af; margin-top: 0;">Email Test Successful! 🎉</h2>
+          <p style="font-size: 16px; margin-bottom: 15px;">
+            This is a test email to verify that the email notification system is working correctly.
+          </p>
+          <p style="font-size: 16px; margin-bottom: 15px;">
+            <strong>Sent at:</strong> ${new Date().toLocaleString()}
+          </p>
+          <p style="font-size: 16px; margin-bottom: 0;">
+            If you can see this email, the notification system is ready to go!
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+          <p style="color: #6b7280; font-size: 14px;">
+            This is a test email from the EV Charging Station system.
+          </p>
+        </div>
+      </div>
+    `;
+
+    console.log("🧪 Sending test email...");
+    await this.sendEmail({
+      to: testEmail,
       subject,
       html,
     });

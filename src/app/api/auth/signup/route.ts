@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authPrisma } from "@/lib/prisma";
+import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -18,14 +18,16 @@ export const POST = withErrorHandler(async (req: Request) => {
     return createErrorResponse("Email and password required", 400);
   }
 
-  const existingUser = await authPrisma.user.findUnique({ where: { email } });
+  const existingUser = await SupabaseService.findUserByEmail(email);
   if (existingUser) {
     return createErrorResponse("User already exists", 409);
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await authPrisma.user.create({
-    data: { email, password: hashedPassword, name },
+  const user = await SupabaseService.createUser({
+    email,
+    password: hashedPassword,
+    name,
   });
 
   return createSuccessResponse(

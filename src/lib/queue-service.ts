@@ -1,4 +1,4 @@
-import { queuePrisma, authPrisma } from "./prisma";
+import { SupabaseService } from "./supabase-service";
 import { QueueEntry } from "@/types";
 import { TimerService } from "./timer-service";
 import { EmailService } from "./email-service";
@@ -12,9 +12,7 @@ export class QueueService {
     chargerId: number
   ): Promise<QueueEntry> {
     // Validate user exists
-    const user = await authPrisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await SupabaseService.findUserById(userId);
 
     if (!user) {
       throw new Error("User does not exist");
@@ -27,11 +25,9 @@ export class QueueService {
     }
 
     // Check if user is already in queue or charging
-    const existingEntry = await queuePrisma.queue.findFirst({
-      where: {
-        userId,
-        status: { in: ["waiting", "charging"] },
-      },
+    const existingEntry = await SupabaseService.findQueueEntry({
+      userId,
+      status: ["waiting", "charging"],
     });
 
     if (existingEntry) {
@@ -43,24 +39,20 @@ export class QueueService {
     }
 
     // Find next position in queue for this charger
-    const lastInQueue = await queuePrisma.queue.findFirst({
-      where: { chargerId, status: "waiting" },
-      orderBy: { position: "desc" },
-    });
-
-    const nextPosition = lastInQueue ? lastInQueue.position + 1 : 1;
+    const lastPosition = await SupabaseService.getLastPositionInQueue(
+      chargerId
+    );
+    const nextPosition = lastPosition + 1;
 
     // Create new queue entry
-    const newEntry = await queuePrisma.queue.create({
-      data: {
-        userId,
-        chargerId,
-        position: nextPosition,
-        status: "waiting",
-      },
+    const newEntry = await SupabaseService.createQueueEntry({
+      userId,
+      chargerId,
+      position: nextPosition,
+      status: "waiting",
     });
 
-    return newEntry as QueueEntry;
+    return newEntry;
   }
 
   /**
@@ -72,11 +64,9 @@ export class QueueService {
     durationMinutes: number
   ): Promise<QueueEntry> {
     // Check if charger is currently occupied
-    const occupiedEntry = await queuePrisma.queue.findFirst({
-      where: {
-        chargerId,
-        status: { in: ["charging", "overtime"] },
-      },
+    const occupiedEntry = await SupabaseService.findQueueEntry({
+      chargerId,
+      status: ["charging", "overtime"],
     });
 
     if (occupiedEntry) {
@@ -86,37 +76,29 @@ export class QueueService {
     }
 
     // Find the first waiting user in queue for this charger
-    const queueEntry = await queuePrisma.queue.findFirst({
-      where: { chargerId, status: "waiting" },
-      orderBy: { position: "asc" },
-    });
+    const queueEntry = await SupabaseService.getFirstWaitingInQueue(chargerId);
 
     if (!queueEntry || queueEntry.userId !== userId) {
       throw new Error("User is not first in queue or not found");
     }
 
     // Update status to charging
-    const updated = await queuePrisma.queue.update({
-      where: { id: queueEntry.id },
-      data: {
-        status: "charging",
-        durationMinutes,
-      },
+    const updated = await SupabaseService.updateQueueEntry(queueEntry.id, {
+      status: "charging",
+      durationMinutes,
+      chargingStartedAt: new Date().toISOString(),
     });
 
     // Start the server-side timer
     await TimerService.startChargingTimer(queueEntry.id, durationMinutes);
 
     // Remove any other waiting entries for this user
-    await queuePrisma.queue.deleteMany({
-      where: {
-        userId,
-        status: "waiting",
-        id: { not: queueEntry.id },
-      },
+    await SupabaseService.deleteQueueEntries({
+      userId,
+      status: "waiting",
     });
 
-    return updated as QueueEntry;
+    return updated;
   }
 
   /**
@@ -126,12 +108,10 @@ export class QueueService {
     userId: number,
     chargerId: number
   ): Promise<void> {
-    const chargingEntry = await queuePrisma.queue.findFirst({
-      where: {
-        userId,
-        chargerId,
-        status: { in: ["charging", "overtime"] },
-      },
+    const chargingEntry = await SupabaseService.findQueueEntry({
+      userId,
+      chargerId,
+      status: ["charging", "overtime"],
     });
 
     if (!chargingEntry) {
@@ -175,29 +155,23 @@ export class QueueService {
    * Get current queue for all chargers
    */
   static async getQueue(): Promise<QueueEntry[]> {
-    const result = await queuePrisma.queue.findMany({
-      orderBy: [{ chargerId: "asc" }, { position: "asc" }],
-    });
-    return result as QueueEntry[];
+    return await SupabaseService.findQueueEntries();
   }
 
   /**
    * Get queue for a specific charger
    */
   static async getQueueForCharger(chargerId: number): Promise<QueueEntry[]> {
-    const result = await queuePrisma.queue.findMany({
-      where: { chargerId },
-      orderBy: { position: "asc" },
-    });
-    return result as QueueEntry[];
+    return await SupabaseService.getQueueForCharger(chargerId);
   }
 
   /**
    * Remove user from queue
    */
   static async removeFromQueue(userId: number): Promise<void> {
-    const entries = await queuePrisma.queue.findMany({
-      where: { userId, status: "waiting" },
+    const entries = await SupabaseService.findQueueEntries({
+      userId,
+      status: "waiting",
     });
 
     if (entries.length === 0) {
@@ -205,21 +179,22 @@ export class QueueService {
     }
 
     // Store charger IDs and whether user was first in line for notification
-    const chargerIds = [...new Set(entries.map((e: any) => e.chargerId))];
-    const wasFirstInLine = entries.some((e: any) => e.position === 1);
+    const chargerIds = [...new Set(entries.map((e) => e.chargerId))];
+    const wasFirstInLine = entries.some((e) => e.position === 1);
 
     // Remove user entries
-    await queuePrisma.queue.deleteMany({
-      where: { userId, status: "waiting" },
+    await SupabaseService.deleteQueueEntries({
+      userId,
+      status: "waiting",
     });
 
     // Reorder queues for affected chargers
     for (const chargerId of chargerIds) {
-      await this.reorderQueue(Number(chargerId));
+      await this.reorderQueue(chargerId);
 
       // If user was first in line, notify the new first person
       if (wasFirstInLine) {
-        await this.notifyNextUserInQueue(Number(chargerId));
+        await this.notifyNextUserInQueue(chargerId);
       }
     }
   }
@@ -228,8 +203,9 @@ export class QueueService {
    * Move user back one spot in their queue (swap with the person behind them)
    */
   static async moveBackOneSpot(userId: number): Promise<void> {
-    const userEntry = await queuePrisma.queue.findFirst({
-      where: { userId, status: "waiting" },
+    const userEntry = await SupabaseService.findQueueEntry({
+      userId,
+      status: "waiting",
     });
 
     if (!userEntry) {
@@ -240,13 +216,11 @@ export class QueueService {
     const currentPosition = userEntry.position;
 
     // Find the person behind the user (higher position number)
-    const personBehind = await queuePrisma.queue.findFirst({
-      where: {
-        chargerId,
-        status: "waiting",
-        position: currentPosition + 1,
-      },
-    });
+    const queueEntries = await SupabaseService.getQueueForCharger(chargerId);
+    const personBehind = queueEntries.find(
+      (entry) =>
+        entry.status === "waiting" && entry.position === currentPosition + 1
+    );
 
     if (!personBehind) {
       // User is already at the back of the queue for this charger, can't move back
@@ -256,14 +230,12 @@ export class QueueService {
     }
 
     // Swap positions: user moves to position + 1, person behind moves to position
-    await queuePrisma.queue.update({
-      where: { id: userEntry.id },
-      data: { position: currentPosition + 1 },
+    await SupabaseService.updateQueueEntry(userEntry.id, {
+      position: currentPosition + 1,
     });
 
-    await queuePrisma.queue.update({
-      where: { id: personBehind.id },
-      data: { position: currentPosition },
+    await SupabaseService.updateQueueEntry(personBehind.id, {
+      position: currentPosition,
     });
   }
 
@@ -272,6 +244,102 @@ export class QueueService {
    */
   static async getRemainingTime(queueEntryId: number): Promise<number> {
     return await TimerService.getRemainingTime(queueEntryId);
+  }
+
+  /**
+   * Calculate estimated wait times for all queue entries
+   */
+  static async getQueueWithEstimatedTimes(): Promise<QueueEntry[]> {
+    const queue = await SupabaseService.findQueueEntries();
+    
+    // Group by charger and calculate estimated times
+    const chargerQueues: Record<number, QueueEntry[]> = {};
+    
+    // Group entries by charger
+    for (const entry of queue) {
+      if (!chargerQueues[entry.chargerId]) {
+        chargerQueues[entry.chargerId] = [];
+      }
+      chargerQueues[entry.chargerId].push(entry);
+    }
+
+    const enhancedQueue: QueueEntry[] = [];
+    const now = new Date();
+
+    // Process each charger's queue
+    for (const chargerId in chargerQueues) {
+      const chargerQueue = chargerQueues[parseInt(chargerId)];
+      
+      // Sort by position for this charger - charging first, then by position
+      chargerQueue.sort((a, b) => {
+        if (a.status === "charging" || a.status === "overtime") return -1;
+        if (b.status === "charging" || b.status === "overtime") return 1;
+        return a.position - b.position;
+      });
+      
+      let nextAvailableTime = new Date();
+      
+      for (let i = 0; i < chargerQueue.length; i++) {
+        const entry = chargerQueue[i];
+        const enhancedEntry = { ...entry };
+        
+        if (entry.status === "charging" || entry.status === "overtime") {
+          // For currently charging users, use their actual estimated end time
+          if (entry.estimatedEndTime) {
+            enhancedEntry.estimatedEndTime = entry.estimatedEndTime;
+            const endTime = new Date(entry.estimatedEndTime);
+            
+            // Calculate remaining time in seconds
+            const remainingMs = endTime.getTime() - now.getTime();
+            enhancedEntry.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+            
+            // Set next available time to when this session ends
+            nextAvailableTime = new Date(Math.max(endTime.getTime(), now.getTime()));
+          } else {
+            // If no estimated end time, assume 30 minutes from now
+            const fallbackEnd = new Date(now.getTime() + 30 * 60 * 1000);
+            enhancedEntry.estimatedEndTime = fallbackEnd.toISOString();
+            enhancedEntry.remainingSeconds = 30 * 60; // 30 minutes in seconds
+            nextAvailableTime = fallbackEnd;
+          }
+        } else if (entry.status === "waiting") {
+          // For waiting users, calculate estimated start and end times
+          const defaultDuration = 30; // Default 30 minutes if no duration specified
+          const estimatedDuration = entry.durationMinutes || defaultDuration;
+          
+          // Estimated start time is when charger becomes available
+          enhancedEntry.estimatedStartTime = nextAvailableTime.toISOString();
+          
+          // Estimated end time is start time + duration
+          const estimatedEnd = new Date(nextAvailableTime.getTime() + estimatedDuration * 60 * 1000);
+          enhancedEntry.estimatedEndTime = estimatedEnd.toISOString();
+          
+          // Calculate wait time in seconds until their turn starts
+          const waitMs = nextAvailableTime.getTime() - now.getTime();
+          enhancedEntry.estimatedWaitSeconds = Math.max(0, Math.ceil(waitMs / 1000));
+          
+          // Update next available time for the next person in queue
+          nextAvailableTime = estimatedEnd;
+        }
+        
+        enhancedQueue.push(enhancedEntry);
+      }
+    }
+
+    // Sort the final queue by charger ID and then by position for consistent display
+    enhancedQueue.sort((a, b) => {
+      if (a.chargerId !== b.chargerId) return a.chargerId - b.chargerId;
+      
+      // Within same charger, charging users first, then by position
+      if ((a.status === "charging" || a.status === "overtime") && 
+          !(b.status === "charging" || b.status === "overtime")) return -1;
+      if (!(a.status === "charging" || a.status === "overtime") && 
+          (b.status === "charging" || b.status === "overtime")) return 1;
+      
+      return a.position - b.position;
+    });
+
+    return enhancedQueue;
   }
 
   /**
@@ -284,12 +352,14 @@ export class QueueService {
 
     // Get stats for each charger
     for (let chargerId = 1; chargerId <= MAX_CHARGERS; chargerId++) {
-      const chargingCount = await queuePrisma.queue.count({
-        where: { chargerId, status: { in: ["charging", "overtime"] } },
+      const chargingCount = await SupabaseService.countQueueEntries({
+        chargerId,
+        status: ["charging", "overtime"],
       });
 
-      const waitingCount = await queuePrisma.queue.count({
-        where: { chargerId, status: "waiting" },
+      const waitingCount = await SupabaseService.countQueueEntries({
+        chargerId,
+        status: "waiting",
       });
 
       chargerStats.push({
@@ -320,16 +390,18 @@ export class QueueService {
    * Reorder queue positions after removal
    */
   private static async reorderQueue(chargerId: number): Promise<void> {
-    const waitingEntries = await queuePrisma.queue.findMany({
-      where: { chargerId, status: "waiting" },
-      orderBy: { position: "asc" },
+    const waitingEntries = await SupabaseService.findQueueEntries({
+      chargerId,
+      status: "waiting",
     });
+
+    // Sort by current position
+    waitingEntries.sort((a, b) => a.position - b.position);
 
     // Update positions to be sequential
     for (let i = 0; i < waitingEntries.length; i++) {
-      await queuePrisma.queue.update({
-        where: { id: waitingEntries[i].id },
-        data: { position: i + 1 },
+      await SupabaseService.updateQueueEntry(waitingEntries[i].id, {
+        position: i + 1,
       });
     }
   }
@@ -340,10 +412,7 @@ export class QueueService {
   private static async getUserInfo(
     userId: number
   ): Promise<{ name: string; email: string }> {
-    const user = await authPrisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, email: true },
-    });
+    const user = await SupabaseService.findUserById(userId);
 
     if (!user || !user.email) {
       throw new Error("User not found or email not available");
@@ -380,9 +449,7 @@ export class QueueService {
    */
   static async notifyNextUserInQueue(chargerId: number): Promise<void> {
     try {
-      const nextUser = await queuePrisma.queue.findFirst({
-        where: { chargerId, status: "waiting", position: 1 },
-      });
+      const nextUser = await SupabaseService.getFirstWaitingInQueue(chargerId);
 
       if (nextUser) {
         const userInfo = await this.getUserInfo(nextUser.userId);

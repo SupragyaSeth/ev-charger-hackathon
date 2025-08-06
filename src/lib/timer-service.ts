@@ -1,4 +1,4 @@
-import { queuePrisma, authPrisma } from "./prisma";
+import { SupabaseService } from "./supabase-service";
 import { EmailService } from "./email-service";
 
 export class TimerService {
@@ -25,13 +25,10 @@ export class TimerService {
     );
 
     // Update the database with timing information
-    await queuePrisma.queue.update({
-      where: { id: queueEntryId },
-      data: {
-        chargingStartedAt: now,
-        estimatedEndTime: estimatedEndTime,
-        status: "charging",
-      },
+    await SupabaseService.updateQueueEntry(queueEntryId, {
+      chargingStartedAt: now.toISOString(),
+      estimatedEndTime: estimatedEndTime.toISOString(),
+      status: "charging",
     });
 
     console.log(`[TIMER] Updated database for queue entry ${queueEntryId}`);
@@ -44,8 +41,8 @@ export class TimerService {
       const almostCompleteTime = (durationMinutes - 2) * 60 * 1000;
       setTimeout(async () => {
         try {
-          const entry = await queuePrisma.queue.findUnique({
-            where: { id: queueEntryId },
+          const entry = await SupabaseService.findQueueEntry({
+            id: queueEntryId,
           });
 
           if (entry && entry.status === "charging") {
@@ -76,15 +73,14 @@ export class TimerService {
           `[TIMER] Timer expired for queue entry ${queueEntryId}, marking as overtime`
         );
         // Check if the entry still exists and is still charging
-        const entry = await queuePrisma.queue.findUnique({
-          where: { id: queueEntryId },
+        const entry = await SupabaseService.findQueueEntry({
+          id: queueEntryId,
         });
 
         if (entry && entry.status === "charging") {
           // Mark as overtime
-          await queuePrisma.queue.update({
-            where: { id: queueEntryId },
-            data: { status: "overtime" },
+          await SupabaseService.updateQueueEntry(queueEntryId, {
+            status: "overtime",
           });
 
           console.log(`Queue entry ${queueEntryId} marked as overtime`);
@@ -143,9 +139,7 @@ export class TimerService {
     this.clearTimer(queueEntryId);
 
     // Remove from queue
-    await queuePrisma.queue.delete({
-      where: { id: queueEntryId },
-    });
+    await SupabaseService.deleteQueueEntry(queueEntryId);
 
     console.log(`Charging completed and queue entry ${queueEntryId} removed`);
   }
@@ -154,8 +148,8 @@ export class TimerService {
    * Get remaining time for a charging session in seconds
    */
   static async getRemainingTime(queueEntryId: number): Promise<number> {
-    const entry = await queuePrisma.queue.findUnique({
-      where: { id: queueEntryId },
+    const entry = await SupabaseService.findQueueEntry({
+      id: queueEntryId,
     });
 
     if (!entry || !entry.estimatedEndTime) {
@@ -175,11 +169,8 @@ export class TimerService {
    */
   static async initializeExistingTimers() {
     try {
-      const chargingEntries = await queuePrisma.queue.findMany({
-        where: {
-          status: { in: ["charging", "overtime"] },
-          estimatedEndTime: { not: null },
-        },
+      const chargingEntries = await SupabaseService.findQueueEntries({
+        status: ["charging", "overtime"],
       });
 
       for (const entry of chargingEntries) {
@@ -189,9 +180,8 @@ export class TimerService {
 
           if (now >= endTime && entry.status === "charging") {
             // Already overtime, mark as such
-            await queuePrisma.queue.update({
-              where: { id: entry.id },
-              data: { status: "overtime" },
+            await SupabaseService.updateQueueEntry(entry.id, {
+              status: "overtime",
             });
           } else if (entry.status === "charging") {
             // Still within time, set up timer for remaining duration
@@ -199,9 +189,8 @@ export class TimerService {
             if (remainingMs > 0) {
               const timeoutId = setTimeout(async () => {
                 try {
-                  await queuePrisma.queue.update({
-                    where: { id: entry.id },
-                    data: { status: "overtime" },
+                  await SupabaseService.updateQueueEntry(entry.id, {
+                    status: "overtime",
                   });
                 } catch (error) {
                   console.error(
@@ -229,10 +218,7 @@ export class TimerService {
   private static async getUserInfo(
     userId: number
   ): Promise<{ name: string; email: string }> {
-    const user = await authPrisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, email: true },
-    });
+    const user = await SupabaseService.findUserById(userId);
 
     if (!user || !user.email) {
       throw new Error("User not found or email not available");

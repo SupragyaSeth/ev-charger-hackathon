@@ -15,7 +15,7 @@ const MAX_QUEUE_SIZE = 20;
 // --- Sample Queue (Replace with real EV charger queue logic) ---
 
 // Simulated queue of tasks (e.g., cars waiting for a charger)
-let queue: string[] = ["task1", "task2", "task3"];
+const queue: string[] = ["task1", "task2", "task3"];
 
 
 // --- Delay Computation Function ---

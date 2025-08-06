@@ -3,21 +3,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { queueApi, authApi } from "@/lib/api-client";
 import { useToast } from "@/components/ToastProvider";
+import { QueueEntry } from "@/types";
 import React from "react";
 
-interface QueueEntry {
-  id: number;
-  userId: number;
-  chargerId: number;
-  position: number;
-  createdAt: string;
-  status: "waiting" | "charging" | "overtime" | "completed";
-  durationMinutes?: number;
-  chargingStartedAt?: string;
-  estimatedEndTime?: string;
-  remainingSeconds?: number; // Calculated field for remaining time in seconds
-}
-
+//not using anymore, may use later with new features
 interface Charger {
   id: number;
   name: string;
@@ -278,8 +267,8 @@ export default function Home() {
     if (!confirmingChargerId || !user?.id) return;
 
     // Validate duration input
-    if (durationInput < 10) {
-      addToast("Duration must be at least 10 minutes", "error");
+    if (durationInput < 1) {
+      addToast("Duration must be at least 1 minute", "error");
       return;
     }
     if (durationInput > 480) {
@@ -515,6 +504,7 @@ export default function Home() {
     }
   }
 
+  // Legacy functions kept for fallback compatibility
   function getEstimatedStartTime(position: number, chargerId: number): Date {
     const charger = chargers.find((c) => c.id === chargerId);
     if (!charger) return new Date();
@@ -559,7 +549,7 @@ export default function Home() {
         typeof window !== "undefined"
           ? window.localStorage.getItem("user")
           : null;
-      console.log("[DEBUG] localStorage userRaw:", userRaw);
+      console.log("localStorage userRaw:", userRaw);
       if (!userRaw) {
         router.replace("/auth");
         return;
@@ -714,14 +704,14 @@ export default function Home() {
     const currentWaitingQueue = queue.filter(
       (entry) => entry.status === "waiting"
     );
-    console.log("[DEBUG] Waiting entries:", currentWaitingQueue);
+    console.log("Waiting entries:", currentWaitingQueue);
 
     // Check if user is first in line for any charger AND that charger is available
     const userFirstInLine = currentWaitingQueue.find(
       (entry) => entry.userId === user.id && entry.position === 1
     );
 
-    console.log("[DEBUG] User first in line:", userFirstInLine);
+    console.log("User first in line:", userFirstInLine);
 
     // Only show modal if user is first in line AND the charger is actually available
     let canStartCharging = false;
@@ -950,14 +940,21 @@ export default function Home() {
                     setDurationInput(60);
                   }
                 }}
-                placeholder="Enter minutes (10-480)"
+                placeholder="Enter minutes (1-480)"
                 className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               />
               <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-gray-400">
-                <span>Min: 10 minutes</span>
+                <span>Min: 1 minute</span>
                 <span>Max: 8 hours (480 min)</span>
               </div>
               <div className="mt-2 flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setDurationInput(1)}
+                  className="px-3 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-colors duration-200"
+                >
+                  1min
+                </button>
                 <button
                   type="button"
                   onClick={() => setDurationInput(30)}
@@ -1432,17 +1429,20 @@ export default function Home() {
                   No one is waiting in the queue!
                 </p>
                 <p className="text-gray-500 dark:text-gray-500 mt-2">
-                  All chargers are available for immediate use.
+                  Chargers are available for immediate use.
                 </p>
               </div>
             ) : (
               <>
                 {waitingQueue.map((entry, index) => {
-                  const waitTime = getWaitTime(entry.position, entry.chargerId);
-                  const estimatedStart = getEstimatedStartTime(
-                    entry.position,
-                    entry.chargerId
-                  );
+                  // Use server-provided estimated times instead of client-side calculations
+                  const waitTime = entry.estimatedWaitSeconds 
+                    ? Math.ceil(entry.estimatedWaitSeconds / 60) 
+                    : getWaitTime(entry.position, entry.chargerId);
+                  
+                  const estimatedStart = entry.estimatedStartTime 
+                    ? new Date(entry.estimatedStartTime)
+                    : getEstimatedStartTime(entry.position, entry.chargerId);
 
                   return (
                     <div
@@ -1477,7 +1477,10 @@ export default function Home() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg text-gray-800 dark:text-white">
-                            {formatTime(waitTime)}
+                            {entry.estimatedWaitSeconds 
+                              ? formatSeconds(entry.estimatedWaitSeconds)
+                              : formatTime(waitTime)
+                            }
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             wait time
@@ -1572,7 +1575,15 @@ export default function Home() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center shadow-lg">
             <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
               {waitingQueue.length > 0
-                ? formatTime(getWaitTime(waitingQueue.length, 1))
+                ? (() => {
+                    // Use the last person's estimated wait time for the overall estimate
+                    const lastEntry = waitingQueue[waitingQueue.length - 1];
+                    if (lastEntry?.estimatedWaitSeconds) {
+                      return formatSeconds(lastEntry.estimatedWaitSeconds);
+                    }
+                    // Fallback to old calculation if server data not available
+                    return formatTime(getWaitTime(waitingQueue.length, 1));
+                  })()
                 : "0m"}
             </div>
             <p className="text-gray-600 dark:text-gray-400 mt-1">

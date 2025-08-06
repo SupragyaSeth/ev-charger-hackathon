@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  // Middleware runs in Edge Runtime which doesn't support Prisma
+  // Middleware runs in Edge Runtime
   // Timer initialization has been moved to /api/init-timers
   return NextResponse.next();
 }

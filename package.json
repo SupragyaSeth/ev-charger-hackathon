@@ -6,14 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "db:generate": "npx prisma generate --schema=prisma/schema.prisma && npx prisma generate --schema=prisma/route.prisma",
-    "db:migrate": "npx prisma migrate dev --schema=prisma/schema.prisma && npx prisma migrate dev --schema=prisma/route.prisma",
-    "db:push": "npx prisma db push --schema=prisma/schema.prisma && npx prisma db push --schema=prisma/route.prisma",
-    "postinstall": "npm run db:generate"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@prisma/client": "^6.12.0",
+    "@supabase/supabase-js": "^2.53.0",
     "@tanstack/react-query": "^5.83.0",
     "@types/nodemailer": "^6.4.17",
     "bcryptjs": "^3.0.2",
@@ -21,10 +17,8 @@
     "next": "15.4.3",
     "next-auth": "^4.24.11",
     "nodemailer": "^6.10.1",
-    "prisma": "^6.12.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "sqlite3": "^5.1.7",
     "tailwind": "^4.0.0"
   },
   "devDependencies": {

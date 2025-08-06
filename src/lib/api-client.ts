@@ -1,4 +1,4 @@
-import { ApiResponse } from "@/types";
+import { ApiResponse, QueueEntry } from "@/types";
 
 /**
  * Enhanced fetch wrapper with error handling and typed responses
@@ -37,7 +37,7 @@ export const queueApi = {
    * Fetch current queue
    */
   getQueue: async () => {
-    return apiCall<{ queue: any[] }>("/api/auth/queue");
+    return apiCall<{ queue: QueueEntry[] }>("/api/auth/queue");
   },
 
   /**
@@ -98,7 +98,7 @@ export const queueApi = {
    * Get queue status with timing information
    */
   getQueueStatus: async () => {
-    return apiCall<{ queue: any[] }>("/api/auth/queue-status");
+    return apiCall<{ queue: QueueEntry[] }>("/api/auth/queue-status");
   },
 
   /**

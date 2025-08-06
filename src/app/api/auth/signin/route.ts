@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authPrisma } from "@/lib/prisma";
+import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -14,7 +14,7 @@ export const POST = withErrorHandler(async (req: Request) => {
     return createErrorResponse("Email and password required", 400);
   }
 
-  const user = await authPrisma.user.findUnique({ where: { email } });
+  const user = await SupabaseService.findUserByEmail(email);
   if (!user) {
     return createErrorResponse("Email not found", 401);
   }
