@@ -6,7 +6,6 @@ import { useToast } from "@/components/ToastProvider";
 import { QueueEntry } from "@/types";
 import React from "react";
 
-
 interface Charger {
   id: number;
   name: string;
@@ -129,6 +128,7 @@ export default function Home() {
   const [modalCountdownInterval, setModalCountdownInterval] =
     useState<NodeJS.Timeout | null>(null);
   const [modalTimeRemaining, setModalTimeRemaining] = useState<number>(0);
+  const [justStartedCharging, setJustStartedCharging] = useState(false);
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -145,7 +145,7 @@ export default function Home() {
       try {
         const data = await queueApi.getQueueStatus();
         const newQueue = data.queue || [];
-        
+
         setQueue(newQueue);
 
         // Fetch user info for all userIds in the queue
@@ -262,10 +262,13 @@ export default function Home() {
   }
 
   // Helper to get charger name by id
-  function getChargerName(chargerId: number) {
-    const charger = chargers.find((c) => c.id === chargerId);
-    return charger ? charger.name : `Charger ${chargerId}`;
-  }
+  const getChargerName = useCallback(
+    (chargerId: number) => {
+      const charger = chargers.find((c) => c.id === chargerId);
+      return charger ? charger.name : `Charger ${chargerId}`;
+    },
+    [chargers]
+  );
 
   async function confirmCharging() {
     if (!confirmingChargerId || !user?.id) return;
@@ -291,6 +294,8 @@ export default function Home() {
         "success"
       );
       setShowDurationModal(false);
+      setConfirmingChargerId(null);
+      setJustStartedCharging(true);
       // Reset the duration modal dismissed flag since user successfully confirmed
       setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
 
@@ -304,6 +309,9 @@ export default function Home() {
         setModalCountdownInterval(null);
       }
       setModalTimeRemaining(0);
+
+      // Reset toast flags to prevent modal from reopening
+      setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
 
       await fetchQueue();
     } catch (error) {
@@ -449,7 +457,7 @@ export default function Home() {
       await queueApi.removeFromQueue(user.id);
       setMessage("You left the queue");
       addToast("Successfully left the queue", "success");
-      
+
       // Reset any modal dismissed flags since user left
       setModalDismissedFor({ durationModal: false, completionModal: false });
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
@@ -460,7 +468,9 @@ export default function Home() {
       // If user was first in line, the next person should get notified
       // The server handles this, but we log it for debugging
       if (wasFirstInLine) {
-        console.log("[DEBUG] User was first in line - next person should be notified");
+        console.log(
+          "[DEBUG] User was first in line - next person should be notified"
+        );
       }
     } catch (error) {
       const errorMessage =
@@ -479,12 +489,12 @@ export default function Home() {
       await queueApi.completeCharging(user.id, completingEntry.chargerId);
       setMessage("Charging completed! Thank you for using the EV charger.");
       addToast("Charging session completed successfully!", "success");
-      
+
       // Close modal and reset all related state
       setShowCompletionModal(false);
       setCompletingEntry(null);
       setModalDismissedFor((prev) => ({ ...prev, completionModal: false }));
-      
+
       // Reset charging-related toast flags
       setToastShownFor((prev) => ({
         ...prev,
@@ -687,6 +697,11 @@ export default function Home() {
     );
 
     if (userChargingEntry) {
+      // Reset the flag when user is actually charging
+      if (justStartedCharging) {
+        setJustStartedCharging(false);
+      }
+
       // Only auto-show completion modal if user is overtime OR has 2 minutes or less remaining
       // But don't interfere with manual completion button clicks
       const shouldAutoShowModal =
@@ -694,7 +709,11 @@ export default function Home() {
         (userChargingEntry.remainingSeconds !== undefined &&
           userChargingEntry.remainingSeconds <= 120);
 
-      if (shouldAutoShowModal && !modalDismissedFor.completionModal && !showCompletionModal) {
+      if (
+        shouldAutoShowModal &&
+        !modalDismissedFor.completionModal &&
+        !showCompletionModal
+      ) {
         setCompletingEntry(userChargingEntry);
         setShowCompletionModal(true);
 
@@ -741,38 +760,25 @@ export default function Home() {
     );
     console.log("Waiting entries:", currentWaitingQueue);
 
-    // Check if user is first in line for any charger AND that charger is available
+    // Check if user is first in line for the global queue
     const userFirstInLine = currentWaitingQueue.find(
       (entry) => entry.userId === user.id && entry.position === 1
     );
 
     console.log("User first in line:", userFirstInLine);
 
-    // Only show modal if user is first in line AND the charger is actually available
-    let canStartCharging = false;
-    if (userFirstInLine) {
-      // Check if the charger is occupied (someone is charging or in overtime)
-      const isChargerOccupied = [...chargingQueue, ...overtimeQueue].some(
-        (entry) => entry.chargerId === userFirstInLine.chargerId
-      );
-      canStartCharging = !isChargerOccupied;
+    // Check if user has been assigned a charger (automatic assignment system)
+    const userWithAssignedCharger = currentWaitingQueue.find(
+      (entry) => entry.userId === user.id && entry.chargerId > 0
+    );
 
-      console.log(
-        "[DEBUG] Charger",
-        userFirstInLine.chargerId,
-        "occupied:",
-        isChargerOccupied,
-        "can start:",
-        canStartCharging
-      );
-    }
+    console.log("User with assigned charger:", userWithAssignedCharger);
 
-    if (userFirstInLine && canStartCharging) {
-      // Always show modal when user is first in line and charger is available
-      // Reset modal dismissed flag when user becomes first in line
+    if (userWithAssignedCharger && !userChargingEntry && !justStartedCharging) {
+      // User has been assigned a charger but is not yet charging and hasn't just started charging - show modal for confirmation
       if (!showDurationModal || modalDismissedFor.durationModal) {
         setShowDurationModal(true);
-        setConfirmingChargerId(userFirstInLine.chargerId);
+        setConfirmingChargerId(userWithAssignedCharger.chargerId);
         setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
 
         // Start the 20-minute countdown timer
@@ -795,20 +801,26 @@ export default function Home() {
         setModalCountdownInterval(countdownInterval);
 
         // Show "charger ready" toast only once per queue entry
-        if (toastShownFor.nextInLine !== userFirstInLine.id) {
+        if (toastShownFor.nextInLine !== userWithAssignedCharger.id) {
           addToast(
-            "Your charger is ready! Please plug in. You have 20 minutes to respond or you'll be moved back one spot.",
+            `${getChargerName(
+              userWithAssignedCharger.chargerId
+            )} has been assigned to you! Please plug in. You have 20 minutes to respond or you'll be moved back one spot.`,
             "success",
             0
           );
           setToastShownFor((prev) => ({
             ...prev,
-            nextInLine: userFirstInLine.id,
+            nextInLine: userWithAssignedCharger.id,
           }));
         }
       }
-    } else if (userFirstInLine && !canStartCharging) {
-      // User is first in line but charger is still occupied - just show toast
+    } else if (
+      userFirstInLine &&
+      !userWithAssignedCharger &&
+      !userChargingEntry
+    ) {
+      // User is first in line but no charger assigned yet and not charging - just show toast
       if (toastShownFor.nextInLine !== userFirstInLine.id) {
         addToast(
           "You're next in line! Waiting for charger to become available.",
@@ -846,14 +858,24 @@ export default function Home() {
         setModalCountdownInterval(null);
       }
       setModalTimeRemaining(0);
-      // Reset nextInLine flag when no longer first in line
+      // Reset nextInLine flag when no longer first in line or assigned
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
-      // Only reset duration modal dismissed flag when no longer first in line
-      if (!userFirstInLine) {
+      // Only reset duration modal dismissed flag when no longer first in line or assigned
+      if (!userFirstInLine && !userWithAssignedCharger) {
         setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
       }
     }
-  }, [queue, user, addToast, showCompletionModal, showDurationModal, modalDismissedFor.durationModal, modalDismissedFor.completionModal]);
+  }, [
+    queue,
+    user,
+    addToast,
+    showCompletionModal,
+    showDurationModal,
+    modalDismissedFor.durationModal,
+    modalDismissedFor.completionModal,
+    getChargerName,
+    justStartedCharging,
+  ]);
 
   // Map chargerId to charging/overtime queue entry
   const chargingMap: Record<number, QueueEntry> = {};
@@ -945,21 +967,33 @@ export default function Home() {
                   </span>
                 </div>
                 <p className="text-xs text-yellow-700 dark:text-yellow-300 text-center mt-1">
-                  You'll be moved back one spot if you don't respond
+                  You&apos;ll be moved back one spot if you don&apos;t respond
                 </p>
               </div>
             )}
-            <p className="mb-2 text-gray-600 dark:text-gray-300">
-              Charger assigned:{" "}
-              <span className="font-semibold">
-                {getChargerName(confirmingChargerId ?? 0)}
-              </span>
-            </p>
             <p className="mb-4 text-gray-600 dark:text-gray-300">
-              Please plug in your car and specify how long you'll use the
-              charger (in minutes):
+              {getChargerName(confirmingChargerId || 0)} has been assigned to
+              you! Please plug in and specify how long you&apos;ll use it:
             </p>
+
+            {/* Assigned Charger Display */}
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-600 rounded-lg">
+              <div className="flex items-center justify-center">
+                <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                  Your Assigned Charger:{" "}
+                  {getChargerName(confirmingChargerId || 0)}
+                </span>
+              </div>
+              <p className="text-sm text-blue-600 dark:text-blue-400 text-center mt-1">
+                This charger has been automatically assigned to you
+              </p>
+            </div>
+
+            {/* Duration Selection */}
             <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Charging Duration (minutes):
+              </label>
               <input
                 type="text"
                 value={durationInput === 0 ? "" : durationInput.toString()}
@@ -1051,11 +1085,11 @@ export default function Home() {
               </button>
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 text-center">
-              In a meeting? Use "Move Back One Spot" to let the next person go
-              first while staying near the front
+              In a meeting? Use &quot;Move Back One Spot&quot; to let the next
+              person go first while staying near the front
             </p>
             <p className="text-xs text-red-600 dark:text-red-400 mt-1 text-center">
-              "Cancel & Leave Queue" will remove you completely
+              &quot;Cancel &amp; Leave Queue&quot; will remove you completely
             </p>
           </div>
         </div>
@@ -1509,7 +1543,15 @@ export default function Home() {
                                 `User ${entry.userId}`}
                             </p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Charger {entry.chargerId}
+                              {entry.chargerId > 0 ? (
+                                <span className="text-green-600 dark:text-green-400 font-medium">
+                                  Assigned: {getChargerName(entry.chargerId)}
+                                </span>
+                              ) : (
+                                <span className="text-yellow-600 dark:text-yellow-400">
+                                  Waiting for assignment
+                                </span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -1539,32 +1581,18 @@ export default function Home() {
 
                       {index === 0 && (
                         <div className="mt-3 px-3 py-2 bg-green-100 dark:bg-green-800 rounded-lg">
-                          {(() => {
-                            // Check if the charger is occupied
-                            const isChargerOccupied = [
-                              ...chargingQueue,
-                              ...overtimeQueue,
-                            ].some(
-                              (occupiedEntry) =>
-                                occupiedEntry.chargerId === entry.chargerId
-                            );
-
-                            if (isChargerOccupied) {
-                              return (
-                                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                                  Next in line! Waiting for current user to
-                                  finish charging.
-                                </p>
-                              );
-                            } else {
-                              return (
-                                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                                  Next in line! Your charger is ready - you
-                                  should see a popup to confirm.
-                                </p>
-                              );
-                            }
-                          })()}
+                          {entry.chargerId > 0 ? (
+                            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                              🎉 Next in line! {getChargerName(entry.chargerId)}{" "}
+                              has been assigned to you - you should see a popup
+                              to confirm.
+                            </p>
+                          ) : (
+                            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                              ⏳ Next in line! Waiting for a charger to become
+                              available for assignment.
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
