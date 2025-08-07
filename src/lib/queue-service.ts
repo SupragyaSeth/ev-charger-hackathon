@@ -108,6 +108,8 @@ export class QueueService {
     userId: number,
     chargerId: number
   ): Promise<void> {
+    console.log(`[QueueService] Completing charging for user ${userId} on charger ${chargerId}`);
+    
     const chargingEntry = await SupabaseService.findQueueEntry({
       userId,
       chargerId,
@@ -125,6 +127,8 @@ export class QueueService {
     const chargingDuration = Math.floor(
       (Date.now() - chargingStartTime.getTime()) / (1000 * 60)
     ); // in minutes
+
+    console.log(`[QueueService] Charging duration: ${chargingDuration} minutes`);
 
     // Send completion email to the user
     try {
@@ -149,6 +153,8 @@ export class QueueService {
 
     // Notify next user in queue that charger is ready
     await this.notifyNextUserInQueue(chargerId);
+    
+    console.log(`[QueueService] Charging completion process finished for user ${userId}`);
   }
 
   /**
@@ -169,6 +175,8 @@ export class QueueService {
    * Remove user from queue
    */
   static async removeFromQueue(userId: number): Promise<void> {
+    console.log(`[QueueService] Removing user ${userId} from queue`);
+    
     const entries = await SupabaseService.findQueueEntries({
       userId,
       status: "waiting",
@@ -181,6 +189,8 @@ export class QueueService {
     // Store charger IDs and whether user was first in line for notification
     const chargerIds = [...new Set(entries.map((e) => e.chargerId))];
     const wasFirstInLine = entries.some((e) => e.position === 1);
+    
+    console.log(`[QueueService] User ${userId} had ${entries.length} entries, was first in line: ${wasFirstInLine}, chargers: ${chargerIds.join(', ')}`);
 
     // Remove user entries
     await SupabaseService.deleteQueueEntries({
@@ -190,13 +200,17 @@ export class QueueService {
 
     // Reorder queues for affected chargers
     for (const chargerId of chargerIds) {
+      console.log(`[QueueService] Reordering queue for charger ${chargerId}`);
       await this.reorderQueue(chargerId);
 
       // If user was first in line, notify the new first person
       if (wasFirstInLine) {
+        console.log(`[QueueService] Notifying next user for charger ${chargerId}`);
         await this.notifyNextUserInQueue(chargerId);
       }
     }
+    
+    console.log(`[QueueService] Successfully removed user ${userId} from queue`);
   }
 
   /**
@@ -251,10 +265,10 @@ export class QueueService {
    */
   static async getQueueWithEstimatedTimes(): Promise<QueueEntry[]> {
     const queue = await SupabaseService.findQueueEntries();
-    
+
     // Group by charger and calculate estimated times
     const chargerQueues: Record<number, QueueEntry[]> = {};
-    
+
     // Group entries by charger
     for (const entry of queue) {
       if (!chargerQueues[entry.chargerId]) {
@@ -269,32 +283,37 @@ export class QueueService {
     // Process each charger's queue
     for (const chargerId in chargerQueues) {
       const chargerQueue = chargerQueues[parseInt(chargerId)];
-      
+
       // Sort by position for this charger - charging first, then by position
       chargerQueue.sort((a, b) => {
         if (a.status === "charging" || a.status === "overtime") return -1;
         if (b.status === "charging" || b.status === "overtime") return 1;
         return a.position - b.position;
       });
-      
+
       let nextAvailableTime = new Date();
-      
+
       for (let i = 0; i < chargerQueue.length; i++) {
         const entry = chargerQueue[i];
         const enhancedEntry = { ...entry };
-        
+
         if (entry.status === "charging" || entry.status === "overtime") {
           // For currently charging users, use their actual estimated end time
           if (entry.estimatedEndTime) {
             enhancedEntry.estimatedEndTime = entry.estimatedEndTime;
             const endTime = new Date(entry.estimatedEndTime);
-            
+
             // Calculate remaining time in seconds
             const remainingMs = endTime.getTime() - now.getTime();
-            enhancedEntry.remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-            
+            enhancedEntry.remainingSeconds = Math.max(
+              0,
+              Math.ceil(remainingMs / 1000)
+            );
+
             // Set next available time to when this session ends
-            nextAvailableTime = new Date(Math.max(endTime.getTime(), now.getTime()));
+            nextAvailableTime = new Date(
+              Math.max(endTime.getTime(), now.getTime())
+            );
           } else {
             // If no estimated end time, assume 30 minutes from now
             const fallbackEnd = new Date(now.getTime() + 30 * 60 * 1000);
@@ -306,22 +325,27 @@ export class QueueService {
           // For waiting users, calculate estimated start and end times
           const defaultDuration = 30; // Default 30 minutes if no duration specified
           const estimatedDuration = entry.durationMinutes || defaultDuration;
-          
+
           // Estimated start time is when charger becomes available
           enhancedEntry.estimatedStartTime = nextAvailableTime.toISOString();
-          
+
           // Estimated end time is start time + duration
-          const estimatedEnd = new Date(nextAvailableTime.getTime() + estimatedDuration * 60 * 1000);
+          const estimatedEnd = new Date(
+            nextAvailableTime.getTime() + estimatedDuration * 60 * 1000
+          );
           enhancedEntry.estimatedEndTime = estimatedEnd.toISOString();
-          
+
           // Calculate wait time in seconds until their turn starts
           const waitMs = nextAvailableTime.getTime() - now.getTime();
-          enhancedEntry.estimatedWaitSeconds = Math.max(0, Math.ceil(waitMs / 1000));
-          
+          enhancedEntry.estimatedWaitSeconds = Math.max(
+            0,
+            Math.ceil(waitMs / 1000)
+          );
+
           // Update next available time for the next person in queue
           nextAvailableTime = estimatedEnd;
         }
-        
+
         enhancedQueue.push(enhancedEntry);
       }
     }
@@ -329,13 +353,19 @@ export class QueueService {
     // Sort the final queue by charger ID and then by position for consistent display
     enhancedQueue.sort((a, b) => {
       if (a.chargerId !== b.chargerId) return a.chargerId - b.chargerId;
-      
+
       // Within same charger, charging users first, then by position
-      if ((a.status === "charging" || a.status === "overtime") && 
-          !(b.status === "charging" || b.status === "overtime")) return -1;
-      if (!(a.status === "charging" || a.status === "overtime") && 
-          (b.status === "charging" || b.status === "overtime")) return 1;
-      
+      if (
+        (a.status === "charging" || a.status === "overtime") &&
+        !(b.status === "charging" || b.status === "overtime")
+      )
+        return -1;
+      if (
+        !(a.status === "charging" || a.status === "overtime") &&
+        (b.status === "charging" || b.status === "overtime")
+      )
+        return 1;
+
       return a.position - b.position;
     });
 
@@ -449,9 +479,11 @@ export class QueueService {
    */
   static async notifyNextUserInQueue(chargerId: number): Promise<void> {
     try {
+      console.log(`[QueueService] Looking for next user in queue for charger ${chargerId}`);
       const nextUser = await SupabaseService.getFirstWaitingInQueue(chargerId);
 
       if (nextUser) {
+        console.log(`[QueueService] Found next user: ${nextUser.userId} at position ${nextUser.position}`);
         const userInfo = await this.getUserInfo(nextUser.userId);
         const chargerName = this.getChargerName(chargerId);
 
@@ -464,6 +496,8 @@ export class QueueService {
         console.log(
           `Email notification sent to ${userInfo.email} for ${chargerName}`
         );
+      } else {
+        console.log(`[QueueService] No waiting users found for charger ${chargerId}`);
       }
     } catch (error) {
       console.error("Failed to notify next user in queue:", error);

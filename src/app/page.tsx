@@ -6,13 +6,13 @@ import { useToast } from "@/components/ToastProvider";
 import { QueueEntry } from "@/types";
 import React from "react";
 
-//not using anymore, may use later with new features
+
 interface Charger {
   id: number;
   name: string;
   location?: string;
   isActive: boolean;
-  timeRemaining: number; // in minutes
+  timeRemaining: number;
   currentUser?: number;
 }
 
@@ -144,11 +144,13 @@ export default function Home() {
       setQueueLoading(true);
       try {
         const data = await queueApi.getQueueStatus();
-        setQueue(data.queue || []);
+        const newQueue = data.queue || [];
+        
+        setQueue(newQueue);
 
         // Fetch user info for all userIds in the queue
         const userIds = Array.from(
-          new Set((data.queue || []).map((entry: any) => entry.userId))
+          new Set(newQueue.map((entry: any) => entry.userId))
         );
 
         if (userIds.length > 0) {
@@ -164,6 +166,8 @@ export default function Home() {
         } else {
           setQueueUsers({});
         }
+
+        console.log("[DEBUG] Queue fetched:", newQueue);
       } catch (error) {
         console.error("Failed to fetch queue:", error);
         addToast("Failed to fetch queue data", "error");
@@ -194,10 +198,10 @@ export default function Home() {
         console.error("Failed to initialize timers:", error);
       });
 
-    // Update queue status every 5 seconds to get real-time timer updates
+    // Update queue status every 3 seconds to get real-time timer updates
     const queueInterval = setInterval(() => {
       fetchQueue();
-    }, 5000);
+    }, 3000);
 
     // Update charger times every 5 seconds (though this might not be needed with server-side timers)
     const chargerInterval = setInterval(() => {
@@ -436,10 +440,28 @@ export default function Home() {
 
     setLoading(true);
     try {
+      // Get user's current position before removing to determine if notifications are needed
+      const userEntry = queue.find(
+        (entry) => entry.userId === user.id && entry.status === "waiting"
+      );
+      const wasFirstInLine = userEntry?.position === 1;
+
       await queueApi.removeFromQueue(user.id);
       setMessage("You left the queue");
       addToast("Successfully left the queue", "success");
+      
+      // Reset any modal dismissed flags since user left
+      setModalDismissedFor({ durationModal: false, completionModal: false });
+      setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
+
+      // Force immediate queue refresh
       await fetchQueue();
+
+      // If user was first in line, the next person should get notified
+      // The server handles this, but we log it for debugging
+      if (wasFirstInLine) {
+        console.log("[DEBUG] User was first in line - next person should be notified");
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to leave queue";
@@ -457,10 +479,20 @@ export default function Home() {
       await queueApi.completeCharging(user.id, completingEntry.chargerId);
       setMessage("Charging completed! Thank you for using the EV charger.");
       addToast("Charging session completed successfully!", "success");
+      
+      // Close modal and reset all related state
       setShowCompletionModal(false);
       setCompletingEntry(null);
-      // Reset the completion modal dismissed flag since user successfully completed
       setModalDismissedFor((prev) => ({ ...prev, completionModal: false }));
+      
+      // Reset charging-related toast flags
+      setToastShownFor((prev) => ({
+        ...prev,
+        overtime: false,
+        almostDone: false,
+      }));
+
+      // Force a queue refresh to update state immediately
       await fetchQueue();
     } catch (error) {
       const errorMessage =
@@ -655,13 +687,14 @@ export default function Home() {
     );
 
     if (userChargingEntry) {
-      // Only show completion modal if user is overtime OR has 2 minutes or less remaining
-      const shouldShowModal =
+      // Only auto-show completion modal if user is overtime OR has 2 minutes or less remaining
+      // But don't interfere with manual completion button clicks
+      const shouldAutoShowModal =
         userChargingEntry.status === "overtime" ||
         (userChargingEntry.remainingSeconds !== undefined &&
           userChargingEntry.remainingSeconds <= 120);
 
-      if (shouldShowModal && !modalDismissedFor.completionModal) {
+      if (shouldAutoShowModal && !modalDismissedFor.completionModal && !showCompletionModal) {
         setCompletingEntry(userChargingEntry);
         setShowCompletionModal(true);
 
@@ -680,7 +713,8 @@ export default function Home() {
             setToastShownFor((prev) => ({ ...prev, almostDone: true }));
           }
         }
-      } else if (!shouldShowModal) {
+      } else if (!shouldAutoShowModal && !completingEntry) {
+        // Only auto-close if modal wasn't manually opened
         setShowCompletionModal(false);
         setCompletingEntry(null);
         // Reset modal dismissed flag when condition no longer applies
@@ -689,6 +723,7 @@ export default function Home() {
         setToastShownFor((prev) => ({ ...prev, almostDone: false }));
       }
     } else {
+      // User is not charging - close completion modal and reset flags
       setShowCompletionModal(false);
       setCompletingEntry(null);
       // Reset charging-related toast flags and modal dismissed flag when not charging
@@ -734,9 +769,11 @@ export default function Home() {
 
     if (userFirstInLine && canStartCharging) {
       // Always show modal when user is first in line and charger is available
-      if (!showDurationModal) {
+      // Reset modal dismissed flag when user becomes first in line
+      if (!showDurationModal || modalDismissedFor.durationModal) {
         setShowDurationModal(true);
         setConfirmingChargerId(userFirstInLine.chargerId);
+        setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
 
         // Start the 5-minute countdown timer
         setModalTimeRemaining(300); // 5 minutes in seconds
@@ -809,11 +846,14 @@ export default function Home() {
         setModalCountdownInterval(null);
       }
       setModalTimeRemaining(0);
-      // Reset nextInLine flag and modal dismissed flag when no longer first in line
+      // Reset nextInLine flag when no longer first in line
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
-      setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
+      // Only reset duration modal dismissed flag when no longer first in line
+      if (!userFirstInLine) {
+        setModalDismissedFor((prev) => ({ ...prev, durationModal: false }));
+      }
     }
-  }, [queue, user, addToast]);
+  }, [queue, user, addToast, showCompletionModal, showDurationModal, modalDismissedFor.durationModal, modalDismissedFor.completionModal]);
 
   // Map chargerId to charging/overtime queue entry
   const chargingMap: Record<number, QueueEntry> = {};
@@ -1209,17 +1249,22 @@ export default function Home() {
                     entry.remainingSeconds > 120
                 );
 
-                if (userChargingEntry && !showCompletionModal) {
+                // Show button if user is charging with >2 min left and modal isn't auto-showing
+                const shouldAutoShowModal =
+                  userChargingEntry &&
+                  (userChargingEntry.status === "overtime" ||
+                    (userChargingEntry.remainingSeconds !== undefined &&
+                      userChargingEntry.remainingSeconds <= 120));
+
+                if (userChargingEntry && !shouldAutoShowModal) {
                   return (
                     <button
                       className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => {
+                        console.log("[DEBUG] Early completion button clicked");
                         setCompletingEntry(userChargingEntry);
                         setShowCompletionModal(true);
-                        setModalDismissedFor((prev) => ({
-                          ...prev,
-                          completionModal: false,
-                        }));
+                        // Don't reset modalDismissedFor since this is a manual action
                       }}
                       disabled={loading}
                     >
@@ -1436,11 +1481,11 @@ export default function Home() {
               <>
                 {waitingQueue.map((entry, index) => {
                   // Use server-provided estimated times instead of client-side calculations
-                  const waitTime = entry.estimatedWaitSeconds 
-                    ? Math.ceil(entry.estimatedWaitSeconds / 60) 
+                  const waitTime = entry.estimatedWaitSeconds
+                    ? Math.ceil(entry.estimatedWaitSeconds / 60)
                     : getWaitTime(entry.position, entry.chargerId);
-                  
-                  const estimatedStart = entry.estimatedStartTime 
+
+                  const estimatedStart = entry.estimatedStartTime
                     ? new Date(entry.estimatedStartTime)
                     : getEstimatedStartTime(entry.position, entry.chargerId);
 
@@ -1477,10 +1522,9 @@ export default function Home() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg text-gray-800 dark:text-white">
-                            {entry.estimatedWaitSeconds 
+                            {entry.estimatedWaitSeconds
                               ? formatSeconds(entry.estimatedWaitSeconds)
-                              : formatTime(waitTime)
-                            }
+                              : formatTime(waitTime)}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             wait time

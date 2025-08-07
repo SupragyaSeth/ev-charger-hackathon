@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get queue with enhanced estimated times
-    const queueWithEstimatedTimes = await QueueService.getQueueWithEstimatedTimes();
+    const queueWithEstimatedTimes =
+      await QueueService.getQueueWithEstimatedTimes();
 
     return NextResponse.json({
       success: true,
