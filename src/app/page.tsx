@@ -267,8 +267,8 @@ export default function Home() {
     if (!confirmingChargerId || !user?.id) return;
 
     // Validate duration input
-    if (durationInput < 1) {
-      addToast("Duration must be at least 1 minute", "error");
+    if (durationInput < 30) {
+      addToast("Duration must be at least 30 minutes", "error");
       return;
     }
     if (durationInput > 480) {
@@ -738,11 +738,11 @@ export default function Home() {
         setShowDurationModal(true);
         setConfirmingChargerId(userFirstInLine.chargerId);
 
-        // Start the 5-minute countdown timer
-        setModalTimeRemaining(300); // 5 minutes in seconds
+        // Start the 20-minute countdown timer
+        setModalTimeRemaining(1200); // 20 minutes in seconds
         const timeoutId = setTimeout(() => {
           handleModalTimeout();
-        }, 300000); // 5 minutes in milliseconds
+        }, 1200000); // 20 minutes in milliseconds
         setModalTimeoutId(timeoutId);
 
         // Start countdown interval
