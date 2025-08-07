@@ -760,7 +760,7 @@ export default function Home() {
         // Show "charger ready" toast only once per queue entry
         if (toastShownFor.nextInLine !== userFirstInLine.id) {
           addToast(
-            "Your charger is ready! Please plug in. You have 5 minutes to respond or you'll be moved back one spot.",
+            "Your charger is ready! Please plug in. You have 20 minutes to respond or you'll be moved back one spot.",
             "success",
             0
           );
@@ -943,50 +943,43 @@ export default function Home() {
                 placeholder="Enter minutes (1-480)"
                 className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               />
-              <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-gray-400">
-                <span>Min: 1 minute</span>
+              <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-gray-400 ">
+                <span>Min: 30 minutes</span>
                 <span>Max: 8 hours (480 min)</span>
               </div>
               <div className="mt-2 flex gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setDurationInput(1)}
-                  className="px-3 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full hover:bg-green-200 dark:hover:bg-green-800 transition-colors duration-200"
-                >
-                  1min
-                </button>
-                <button
-                  type="button"
                   onClick={() => setDurationInput(30)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
                 >
                   30min
                 </button>
                 <button
                   type="button"
                   onClick={() => setDurationInput(60)}
-                  className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors duration-200"
+                  className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 hover:cursor-pointer dark:hover:bg-blue-800 transition-colors duration-200"
                 >
                   1hr
                 </button>
                 <button
                   type="button"
                   onClick={() => setDurationInput(120)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
                 >
                   2hr
                 </button>
                 <button
                   type="button"
                   onClick={() => setDurationInput(180)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
                 >
                   3hr
                 </button>
                 <button
                   type="button"
                   onClick={() => setDurationInput(240)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
                 >
                   4hr
                 </button>
