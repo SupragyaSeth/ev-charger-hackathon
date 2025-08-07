@@ -1,6 +1,27 @@
 import { SupabaseService } from "./supabase-service";
 import { EmailService } from "./email-service";
 
+// Import the broadcast functions
+let broadcastQueueUpdate: ((data: any) => void) | null = null;
+let broadcastEvent: ((eventType: string, data: any) => void) | null = null;
+
+// Dynamically import to avoid circular dependency
+async function getBroadcastFunctions() {
+  if (!broadcastQueueUpdate || !broadcastEvent) {
+    try {
+      const { 
+        broadcastQueueUpdate: broadcast, 
+        broadcastEvent: broadcastEventFn 
+      } = await import('@/app/api/events/route');
+      broadcastQueueUpdate = broadcast;
+      broadcastEvent = broadcastEventFn;
+    } catch (error) {
+      console.warn('Could not import broadcast functions:', error);
+    }
+  }
+  return { broadcastQueueUpdate, broadcastEvent };
+}
+
 export class TimerService {
   private static intervals = new Map<number, NodeJS.Timeout>();
 
@@ -33,6 +54,16 @@ export class TimerService {
 
     console.log(`[TIMER] Updated database for queue entry ${queueEntryId}`);
 
+    // Broadcast timer update via SSE
+    const { broadcastEvent } = await getBroadcastFunctions();
+    if (broadcastEvent) {
+      broadcastEvent('timer_started', {
+        queueEntryId,
+        estimatedEndTime: estimatedEndTime.toISOString(),
+        durationMinutes
+      });
+    }
+
     // Clear any existing timer for this entry
     this.clearTimer(queueEntryId);
 
@@ -59,6 +90,15 @@ export class TimerService {
             console.log(
               `Almost complete email sent to ${userInfo.email} for ${chargerName}`
             );
+            
+            // Broadcast almost complete status
+            const { broadcastEvent } = await getBroadcastFunctions();
+            if (broadcastEvent) {
+              broadcastEvent('charging_almost_complete', {
+                queueEntryId,
+                minutesRemaining: 2
+              });
+            }
           }
         } catch (error) {
           console.error("Failed to send almost complete email:", error);
@@ -84,6 +124,14 @@ export class TimerService {
           });
 
           console.log(`Queue entry ${queueEntryId} marked as overtime`);
+
+          // Broadcast overtime status via SSE
+          const { broadcastEvent } = await getBroadcastFunctions();
+          if (broadcastEvent) {
+            broadcastEvent('charging_overtime', {
+              queueEntryId
+            });
+          }
 
           // Send overtime email notification
           try {
@@ -142,6 +190,14 @@ export class TimerService {
     await SupabaseService.deleteQueueEntry(queueEntryId);
 
     console.log(`Charging completed and queue entry ${queueEntryId} removed`);
+
+    // Broadcast completion via SSE
+    const { broadcastEvent } = await getBroadcastFunctions();
+    if (broadcastEvent) {
+      broadcastEvent('charging_completed', {
+        queueEntryId
+      });
+    }
   }
 
   /**

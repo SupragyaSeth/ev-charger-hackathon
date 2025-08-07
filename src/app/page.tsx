@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { queueApi, authApi } from "@/lib/api-client";
 import { useToast } from "@/components/ToastProvider";
+import { useRealtimeQueue } from "@/hooks/useRealtimeQueue";
 import { QueueEntry } from "@/types";
 import React from "react";
 
@@ -35,14 +36,13 @@ function CurrentTimeDisplay() {
 }
 
 export default function Home() {
+  // Use the enhanced SSE hook for all real-time updates
+  const { queue, queueUsers, isConnected, timersInitialized, reconnect } = useRealtimeQueue();
+  
   // Profile popup state
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [queue, setQueue] = useState<QueueEntry[]>([]);
-  const [queueUsers, setQueueUsers] = useState<
-    Record<number, { id: number; name?: string; email?: string }>
-  >({});
   const [chargers, setChargers] = useState<Charger[]>([
     {
       id: 1,
@@ -139,46 +139,6 @@ export default function Home() {
 
   const CHARGING_DURATION_MINUTES = 180; // 3 hours
 
-  const fetchQueue = useCallback(
-    async function fetchQueue() {
-      setQueueLoading(true);
-      try {
-        const data = await queueApi.getQueueStatus();
-        const newQueue = data.queue || [];
-
-        setQueue(newQueue);
-
-        // Fetch user info for all userIds in the queue
-        const userIds = Array.from(
-          new Set(newQueue.map((entry: any) => entry.userId))
-        );
-
-        if (userIds.length > 0) {
-          const usersData = await queueApi.getUsers(userIds);
-          const userMap: Record<
-            number,
-            { id: number; name?: string; email?: string }
-          > = {};
-          usersData.users.forEach((u: any) => {
-            userMap[u.id] = u;
-          });
-          setQueueUsers(userMap);
-        } else {
-          setQueueUsers({});
-        }
-
-        console.log("[DEBUG] Queue fetched:", newQueue);
-      } catch (error) {
-        console.error("Failed to fetch queue:", error);
-        addToast("Failed to fetch queue data", "error");
-        setQueue([]);
-        setQueueUsers({});
-      }
-      setQueueLoading(false);
-    },
-    [addToast]
-  );
-
   useEffect(() => {
     const user = window.localStorage.getItem("user");
     if (!user) {
@@ -186,37 +146,10 @@ export default function Home() {
       return;
     }
     setAuthChecked(true);
-    fetchQueue();
 
-    // Initialize timers on app load
-    fetch("/api/init-timers")
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Timer initialization:", data);
-      })
-      .catch((error) => {
-        console.error("Failed to initialize timers:", error);
-      });
-
-    // Update queue status every 3 seconds to get real-time timer updates
-    const queueInterval = setInterval(() => {
-      fetchQueue();
-    }, 3000);
-
-    // Update charger times every 5 seconds (though this might not be needed with server-side timers)
-    const chargerInterval = setInterval(() => {
-      setChargers((prev) =>
-        prev.map((charger) => ({
-          ...charger,
-          timeRemaining: Math.max(0, charger.timeRemaining - 1),
-          isActive: charger.timeRemaining > 1,
-        }))
-      );
-    }, 5000);
-
+    // No more polling! Everything comes via SSE now
+    // Only cleanup function for modal timeouts
     return () => {
-      clearInterval(queueInterval);
-      clearInterval(chargerInterval);
       // Clear modal timeout if it exists
       if (modalTimeoutId) {
         clearTimeout(modalTimeoutId);
@@ -226,7 +159,7 @@ export default function Home() {
         clearInterval(modalCountdownInterval);
       }
     };
-  }, [fetchQueue, router]);
+  }, [router]);
 
   async function joinQueue() {
     setMessage("");
@@ -249,7 +182,7 @@ export default function Home() {
       await queueApi.joinQueue(user.id, bestChargerId);
       setMessage(`You joined the queue!`);
       addToast(`Successfully joined the queue!`, "success");
-      await fetchQueue(); // This will trigger the modal if user is first
+      // Queue will update automatically via SSE
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to join queue";
@@ -313,7 +246,7 @@ export default function Home() {
       // Reset toast flags to prevent modal from reopening
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
 
-      await fetchQueue();
+      // Queue will update automatically via SSE
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to start charging";
@@ -356,7 +289,7 @@ export default function Home() {
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
 
       // Refresh the queue to update positions and trigger next person's modal
-      await fetchQueue();
+      // Queue will update automatically via SSE
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to leave queue";
@@ -394,7 +327,7 @@ export default function Home() {
       );
 
       // Refresh the queue to update positions and trigger next person's modal
-      await fetchQueue();
+      // Queue will update automatically via SSE
     } catch (error) {
       console.error("Failed to handle modal timeout:", error);
     }
@@ -433,7 +366,7 @@ export default function Home() {
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
 
       // Refresh the queue to update positions and trigger next person's modal
-      await fetchQueue();
+      // Queue will update automatically via SSE
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to move back one spot";
@@ -463,7 +396,7 @@ export default function Home() {
       setToastShownFor((prev) => ({ ...prev, nextInLine: null }));
 
       // Force immediate queue refresh
-      await fetchQueue();
+      // Queue will update automatically via SSE
 
       // If user was first in line, the next person should get notified
       // The server handles this, but we log it for debugging
@@ -503,7 +436,7 @@ export default function Home() {
       }));
 
       // Force a queue refresh to update state immediately
-      await fetchQueue();
+      // Queue will update automatically via SSE
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to complete charging";
@@ -1188,6 +1121,32 @@ export default function Home() {
             EV Charging Station
           </h1>
           <CurrentTimeDisplay />
+          
+          {/* SSE Connection Status */}
+          <div className="mt-2 flex justify-center items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                {isConnected ? 'Real-time connected' : 'Connection lost'}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${timersInitialized ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                {timersInitialized ? 'Timers ready' : 'Initializing timers...'}
+              </span>
+            </div>
+            
+            {!isConnected && (
+              <button
+                onClick={reconnect}
+                className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+              >
+                Reconnect
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Action Buttons */}

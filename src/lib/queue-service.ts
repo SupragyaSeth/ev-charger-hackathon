@@ -3,7 +3,47 @@ import { QueueEntry } from "@/types";
 import { TimerService } from "./timer-service";
 import { EmailService } from "./email-service";
 
+// Import the broadcast functions
+let broadcastQueueUpdate: ((data: any) => void) | null = null;
+let broadcastEvent: ((eventType: string, data: any) => void) | null = null;
+
+// Dynamically import to avoid circular dependency
+async function getBroadcastFunctions() {
+  if (!broadcastQueueUpdate || !broadcastEvent) {
+    try {
+      const { 
+        broadcastQueueUpdate: broadcast, 
+        broadcastEvent: broadcastEventFn 
+      } = await import('@/app/api/events/route');
+      broadcastQueueUpdate = broadcast;
+      broadcastEvent = broadcastEventFn;
+    } catch (error) {
+      console.warn('Could not import broadcast functions:', error);
+    }
+  }
+  return { broadcastQueueUpdate, broadcastEvent };
+}
+
 export class QueueService {
+  /**
+   * Broadcast queue update via SSE
+   */
+  private static async broadcastQueueUpdate() {
+    try {
+      const { broadcastQueueUpdate } = await getBroadcastFunctions();
+      if (broadcastQueueUpdate) {
+        const queue = await this.getQueueWithEstimatedTimes();
+        broadcastQueueUpdate({
+          type: 'queue_update',
+          queue,
+          timestamp: Date.now()
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to broadcast queue update:', error);
+    }
+  }
+
   /**
    * Add a user to the queue for a specific charger
    */
@@ -57,6 +97,9 @@ export class QueueService {
     if (nextPosition === 1) {
       await this.assignChargersToWaitingUsers();
     }
+
+    // Broadcast queue update
+    await this.broadcastQueueUpdate();
 
     return newEntry;
   }
@@ -184,6 +227,9 @@ export class QueueService {
     // Check if there are people waiting and assign the newly available charger
     await this.assignChargersToWaitingUsers();
 
+    // Broadcast queue update
+    await this.broadcastQueueUpdate();
+
     console.log(
       `[QueueService] Charging completion process finished for user ${userId}`
     );
@@ -245,6 +291,9 @@ export class QueueService {
     console.log(
       `[QueueService] Successfully removed user ${userId} from queue`
     );
+
+    // Broadcast queue update
+    await this.broadcastQueueUpdate();
   }
 
   /**
@@ -321,6 +370,9 @@ export class QueueService {
     if (currentPosition === 1) {
       await this.assignChargersToWaitingUsers();
     }
+
+    // Broadcast queue update
+    await this.broadcastQueueUpdate();
 
     console.log(
       `[QueueService] User ${userId} moved from position ${currentPosition} to ${
@@ -593,6 +645,9 @@ export class QueueService {
           `[QueueService] Assigned ${chargerName} to ${userInfo.email}`
         );
       }
+
+      // Broadcast queue update after assignments
+      await this.broadcastQueueUpdate();
     } catch (error) {
       console.error("Failed to assign chargers to waiting users:", error);
     }
