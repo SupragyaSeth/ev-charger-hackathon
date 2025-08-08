@@ -18,8 +18,9 @@ interface Charger {
 
 // Time display component to prevent re-renders of parent
 function CurrentTimeDisplay() {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(new Date()); // State to track current time for display
 
+  // Update the current time every second
   useEffect(() => {
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
@@ -41,10 +42,11 @@ export default function Home() {
     useRealtimeQueue();
 
   // Profile popup state
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false); // Controls whether profile dropdown is open
+  const profileRef = useRef<HTMLDivElement>(null); // Ref for profile dropdown to detect outside clicks
+  const [authChecked, setAuthChecked] = useState(false); // Tracks if initial auth check is complete
   const [chargers, setChargers] = useState<Charger[]>([
+    // Static array of all available chargers
     {
       id: 1,
       name: "Charger A",
@@ -102,34 +104,36 @@ export default function Home() {
       timeRemaining: 0,
     },
   ]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [queueLoading, setQueueLoading] = useState(false);
-  const [showDurationModal, setShowDurationModal] = useState(false);
-  const [durationInput, setDurationInput] = useState(60);
-  const [confirmingChargerId, setConfirmingChargerId] = useState<number | null>(
+  const [message, setMessage] = useState(""); // User feedback message displayed below action buttons
+  const [loading, setLoading] = useState(false); // Global loading state for API operations
+  const [queueLoading, setQueueLoading] = useState(false); // Specific loading state for queue operations
+  const [showDurationModal, setShowDurationModal] = useState(false); // Controls visibility of charging duration selection modal
+  const [durationInput, setDurationInput] = useState(60); // User's selected charging duration in minutes
+  const [confirmingChargerId, setConfirmingChargerId] = useState<number | null>( // ID of charger being confirmed for use
     null
   );
-  const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [completingEntry, setCompletingEntry] = useState<QueueEntry | null>(
+  const [showCompletionModal, setShowCompletionModal] = useState(false); // Controls visibility of charging completion modal
+  const [completingEntry, setCompletingEntry] = useState<QueueEntry | null>( // Queue entry being completed/ended
     null
   );
   const [toastShownFor, setToastShownFor] = useState<{
+    // Tracks which toasts have been shown to prevent duplicates
     nextInLine: number | null; // Track which queue entry ID we've shown the toast for
     overtime: boolean;
     almostDone: boolean;
   }>({ nextInLine: null, overtime: false, almostDone: false });
   const [modalDismissedFor, setModalDismissedFor] = useState<{
+    // Tracks which modals user has manually dismissed
     durationModal: boolean;
     completionModal: boolean;
   }>({ durationModal: false, completionModal: false });
-  const [modalTimeoutId, setModalTimeoutId] = useState<NodeJS.Timeout | null>(
+  const [modalTimeoutId, setModalTimeoutId] = useState<NodeJS.Timeout | null>( // Timer ID for 20-minute modal timeout
     null
   );
-  const [modalCountdownInterval, setModalCountdownInterval] =
+  const [modalCountdownInterval, setModalCountdownInterval] = // Interval ID for modal countdown display
     useState<NodeJS.Timeout | null>(null);
-  const [modalTimeRemaining, setModalTimeRemaining] = useState<number>(0);
-  const [justStartedCharging, setJustStartedCharging] = useState(false);
+  const [modalTimeRemaining, setModalTimeRemaining] = useState<number>(0); // Seconds remaining in modal timeout countdown
+  const [justStartedCharging, setJustStartedCharging] = useState(false); // Flag to prevent modal reopening after starting charge
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -140,6 +144,7 @@ export default function Home() {
 
   const CHARGING_DURATION_MINUTES = 180; // 3 hours
 
+  // Initial authentication check and cleanup setup
   useEffect(() => {
     const user = window.localStorage.getItem("user");
     if (!user) {
@@ -162,6 +167,7 @@ export default function Home() {
     };
   }, [router]);
 
+  // Adds user to the charging queue
   async function joinQueue() {
     setMessage("");
     setLoading(true);
@@ -204,6 +210,7 @@ export default function Home() {
     [chargers]
   );
 
+  // Confirms charging session and starts the timer with user-specified duration
   async function confirmCharging() {
     if (!confirmingChargerId || !user?.id) return;
 
@@ -257,6 +264,7 @@ export default function Home() {
     setLoading(false);
   }
 
+  // Cancels charging and removes user from queue completely
   async function handleCancelCharging() {
     if (!user?.id) return;
 
@@ -300,6 +308,7 @@ export default function Home() {
     setLoading(false);
   }
 
+  // Handles 20-minute timeout by moving user back one spot instead of removing them
   async function handleModalTimeout() {
     if (!user?.id) return;
 
@@ -334,6 +343,7 @@ export default function Home() {
     }
   }
 
+  // Manually moves user back one position in queue (useful for meetings/delays)
   async function handleMoveBackOneSpot() {
     if (!user?.id) return;
 
@@ -377,6 +387,7 @@ export default function Home() {
     setLoading(false);
   }
 
+  // Removes user from queue entirely and gives spot to next person
   async function leaveQueue() {
     if (!user?.id) return;
 
@@ -415,6 +426,7 @@ export default function Home() {
     setLoading(false);
   }
 
+  // Completes the charging session and frees up the charger
   async function completeCharging() {
     if (!completingEntry || !user?.id) return;
 
@@ -447,6 +459,7 @@ export default function Home() {
     setLoading(false);
   }
 
+  // Signs out user and redirects to auth page
   function signOut() {
     // Clear user data from localStorage
     window.localStorage.removeItem("user");
@@ -458,12 +471,14 @@ export default function Home() {
     router.replace("/auth");
   }
 
+  // Formats minutes into human-readable time (e.g., "2h 30m" or "45m")
   function formatTime(minutes: number): string {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   }
 
+  // Formats seconds into human-readable time with hours, minutes, and seconds
   function formatSeconds(seconds: number): string {
     if (seconds <= 0) return "0s";
 
@@ -482,6 +497,7 @@ export default function Home() {
 
   // Legacy functions kept for fallback compatibility
   function getEstimatedStartTime(position: number, chargerId: number): Date {
+    // Calculates estimated start time based on queue position
     const charger = chargers.find((c) => c.id === chargerId);
     if (!charger) return new Date();
 
@@ -492,6 +508,7 @@ export default function Home() {
     return startTime;
   }
 
+  // Calculates total wait time in minutes based on queue position
   function getWaitTime(position: number, chargerId: number): number {
     const charger = chargers.find((c) => c.id === chargerId);
     if (!charger) return 0;
@@ -499,6 +516,7 @@ export default function Home() {
     return charger.timeRemaining + (position - 1) * CHARGING_DURATION_MINUTES;
   }
 
+  // Returns appropriate color class for charger status indicator
   function getChargerStatusColor(charger: Charger): string {
     if (!charger.isActive) return "bg-green-500";
     if (charger.timeRemaining > 120) return "bg-red-500";
@@ -506,6 +524,7 @@ export default function Home() {
     return "bg-orange-500";
   }
 
+  // Returns human-readable status text for charger display
   function getChargerStatusText(charger: Charger): string {
     if (!charger.isActive) return "Available";
     return `In Use - ${formatTime(charger.timeRemaining)} remaining`;
@@ -513,12 +532,14 @@ export default function Home() {
 
   // User info state (from DB)
   const [user, setUser] = useState<{
+    // Current logged-in user data
     id?: number;
     name?: string;
     email?: string;
     photo?: string;
   } | null>(null);
 
+  // Fetches and validates user data from localStorage and backend
   useEffect(() => {
     async function fetchUser() {
       const userRaw =
@@ -585,7 +606,7 @@ export default function Home() {
     }
   }, [authChecked, router]);
 
-  // Close profile popup on outside click (must be before any return)
+  // Detects clicks outside profile popup to close it
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (
@@ -603,7 +624,7 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [profileOpen]);
 
-  // Show modal if user is first in queue
+  // Manages modal display logic for charging confirmation and completion based on user's queue status
   useEffect(() => {
     console.log("[DEBUG] Modal check - user:", user?.id, "queue:", queue);
 
@@ -812,7 +833,7 @@ export default function Home() {
   ]);
 
   // Map chargerId to charging/overtime queue entry
-  const chargingMap: Record<number, QueueEntry> = {};
+  const chargingMap: Record<number, QueueEntry> = {}; // Creates lookup map for finding active charging sessions by charger ID
   [...chargingQueue, ...overtimeQueue].forEach((entry) => {
     chargingMap[entry.chargerId] = entry;
   });
