@@ -1192,37 +1192,38 @@ export default function Home() {
                 </button>
               )}
 
-            {/* Show completion button if user is charging/overtime but modal is dismissed */}
+            {/* Show completion button only when session is overtime or in final 2 minutes AND modal was dismissed */}
             {user?.id &&
-              queue.find(
-                (entry) =>
-                  entry.userId === user.id &&
-                  (entry.status === "charging" || entry.status === "overtime")
-              ) &&
-              modalDismissedFor.completionModal && (
-                <button
-                  className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => {
-                    const userChargingEntry = queue.find(
-                      (entry) =>
-                        entry.userId === user.id &&
-                        (entry.status === "charging" ||
-                          entry.status === "overtime")
-                    );
-                    if (userChargingEntry) {
+              modalDismissedFor.completionModal &&
+              (() => {
+                const userChargingEntry = queue.find(
+                  (entry) =>
+                    entry.userId === user.id &&
+                    (entry.status === "charging" || entry.status === "overtime")
+                );
+                if (!userChargingEntry) return null;
+                const isFinalStage =
+                  userChargingEntry.status === "overtime" ||
+                  (userChargingEntry.remainingSeconds !== undefined &&
+                    userChargingEntry.remainingSeconds <= 120);
+                if (!isFinalStage) return null;
+                return (
+                  <button
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => {
                       setCompletingEntry(userChargingEntry);
                       setShowCompletionModal(true);
                       setModalDismissedFor((prev) => ({
                         ...prev,
                         completionModal: false,
                       }));
-                    }
-                  }}
-                  disabled={loading}
-                >
-                  Complete Charging
-                </button>
-              )}
+                    }}
+                    disabled={loading}
+                  >
+                    Complete Charging
+                  </button>
+                );
+              })()}
 
             {/* Show early completion button if user is charging with more than 2 minutes left */}
             {user?.id &&
