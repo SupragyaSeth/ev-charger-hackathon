@@ -11,14 +11,14 @@ let broadcastEvent: ((eventType: string, data: any) => void) | null = null;
 async function getBroadcastFunctions() {
   if (!broadcastQueueUpdate || !broadcastEvent) {
     try {
-      const { 
-        broadcastQueueUpdate: broadcast, 
-        broadcastEvent: broadcastEventFn 
-      } = await import('@/app/api/events/route');
+      const {
+        broadcastQueueUpdate: broadcast,
+        broadcastEvent: broadcastEventFn,
+      } = await import("@/app/api/events/route");
       broadcastQueueUpdate = broadcast;
       broadcastEvent = broadcastEventFn;
     } catch (error) {
-      console.warn('Could not import broadcast functions:', error);
+      console.warn("Could not import broadcast functions:", error);
     }
   }
   return { broadcastQueueUpdate, broadcastEvent };
@@ -34,13 +34,13 @@ export class QueueService {
       if (broadcastQueueUpdate) {
         const queue = await this.getQueueWithEstimatedTimes();
         broadcastQueueUpdate({
-          type: 'queue_update',
+          type: "queue_update",
           queue,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
     } catch (error) {
-      console.warn('Failed to broadcast queue update:', error);
+      console.warn("Failed to broadcast queue update:", error);
     }
   }
 

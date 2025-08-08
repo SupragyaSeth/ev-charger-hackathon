@@ -9,14 +9,14 @@ let broadcastEvent: ((eventType: string, data: any) => void) | null = null;
 async function getBroadcastFunctions() {
   if (!broadcastQueueUpdate || !broadcastEvent) {
     try {
-      const { 
-        broadcastQueueUpdate: broadcast, 
-        broadcastEvent: broadcastEventFn 
-      } = await import('@/app/api/events/route');
+      const {
+        broadcastQueueUpdate: broadcast,
+        broadcastEvent: broadcastEventFn,
+      } = await import("@/app/api/events/route");
       broadcastQueueUpdate = broadcast;
       broadcastEvent = broadcastEventFn;
     } catch (error) {
-      console.warn('Could not import broadcast functions:', error);
+      console.warn("Could not import broadcast functions:", error);
     }
   }
   return { broadcastQueueUpdate, broadcastEvent };
@@ -57,10 +57,10 @@ export class TimerService {
     // Broadcast timer update via SSE
     const { broadcastEvent } = await getBroadcastFunctions();
     if (broadcastEvent) {
-      broadcastEvent('timer_started', {
+      broadcastEvent("timer_started", {
         queueEntryId,
         estimatedEndTime: estimatedEndTime.toISOString(),
-        durationMinutes
+        durationMinutes,
       });
     }
 
@@ -90,13 +90,13 @@ export class TimerService {
             console.log(
               `Almost complete email sent to ${userInfo.email} for ${chargerName}`
             );
-            
+
             // Broadcast almost complete status
             const { broadcastEvent } = await getBroadcastFunctions();
             if (broadcastEvent) {
-              broadcastEvent('charging_almost_complete', {
+              broadcastEvent("charging_almost_complete", {
                 queueEntryId,
-                minutesRemaining: 2
+                minutesRemaining: 2,
               });
             }
           }
@@ -128,8 +128,8 @@ export class TimerService {
           // Broadcast overtime status via SSE
           const { broadcastEvent } = await getBroadcastFunctions();
           if (broadcastEvent) {
-            broadcastEvent('charging_overtime', {
-              queueEntryId
+            broadcastEvent("charging_overtime", {
+              queueEntryId,
             });
           }
 
@@ -194,8 +194,8 @@ export class TimerService {
     // Broadcast completion via SSE
     const { broadcastEvent } = await getBroadcastFunctions();
     if (broadcastEvent) {
-      broadcastEvent('charging_completed', {
-        queueEntryId
+      broadcastEvent("charging_completed", {
+        queueEntryId,
       });
     }
   }

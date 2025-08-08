@@ -37,8 +37,9 @@ function CurrentTimeDisplay() {
 
 export default function Home() {
   // Use the enhanced SSE hook for all real-time updates
-  const { queue, queueUsers, isConnected, timersInitialized, reconnect } = useRealtimeQueue();
-  
+  const { queue, queueUsers, isConnected, timersInitialized, reconnect } =
+    useRealtimeQueue();
+
   // Profile popup state
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -1121,23 +1122,31 @@ export default function Home() {
             EV Charging Station
           </h1>
           <CurrentTimeDisplay />
-          
+
           {/* SSE Connection Status */}
           <div className="mt-2 flex justify-center items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  isConnected ? "bg-green-500" : "bg-red-500"
+                }`}
+              ></div>
               <span className="text-sm text-gray-600 dark:text-gray-300">
-                {isConnected ? 'Real-time connected' : 'Connection lost'}
+                {isConnected ? "Real-time connected" : "Connection lost"}
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${timersInitialized ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  timersInitialized ? "bg-green-500" : "bg-yellow-500"
+                }`}
+              ></div>
               <span className="text-sm text-gray-600 dark:text-gray-300">
-                {timersInitialized ? 'Timers ready' : 'Initializing timers...'}
+                {timersInitialized ? "Timers ready" : "Initializing timers..."}
               </span>
             </div>
-            
+
             {!isConnected && (
               <button
                 onClick={reconnect}
