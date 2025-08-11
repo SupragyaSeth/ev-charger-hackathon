@@ -735,4 +735,11 @@ export class QueueService {
       console.error("Failed to notify next user in queue:", error);
     }
   }
+
+  /**
+   * Expose reorderGlobalQueue for admin removal consistency and add proper broadcast on removeEntry path from admin API.
+   */
+  public static async reorderGlobalQueuePublic() {
+    return this.reorderGlobalQueue();
+  }
 }

@@ -24,13 +24,16 @@ async function getBroadcastFunctions() {
 
 export class TimerService {
   private static intervals = new Map<number, NodeJS.Timeout>();
+  private static noOvertime = new Set<number>(); // entries that should auto-complete instead of overtime
 
   /**
    * Start a timer for a charging session
+   * @param allowOvertime whether to convert to overtime (default true). If false, session auto-completes.
    */
   static async startChargingTimer(
     queueEntryId: number,
-    durationMinutes: number
+    durationMinutes: number,
+    allowOvertime: boolean = true
   ) {
     console.log(
       `[TIMER] Starting timer for queue entry ${queueEntryId} with duration ${durationMinutes} minutes`
@@ -110,52 +113,53 @@ export class TimerService {
     const timeoutId = setTimeout(async () => {
       try {
         console.log(
-          `[TIMER] Timer expired for queue entry ${queueEntryId}, marking as overtime`
+          `[TIMER] Timer expired for queue entry ${queueEntryId}, ${
+            this.noOvertime.has(queueEntryId)
+              ? "auto-completing"
+              : "marking as overtime"
+          }`
         );
-        // Check if the entry still exists and is still charging
         const entry = await SupabaseService.findQueueEntry({
           id: queueEntryId,
         });
-
-        if (entry && entry.status === "charging") {
-          // Mark as overtime
-          const updated = await SupabaseService.updateQueueEntry(queueEntryId, {
-            status: "overtime",
-          });
-
-          console.log(`Queue entry ${queueEntryId} marked as overtime`);
-
-          // Broadcast overtime status via SSE (include end time so clients can continue negative countdown)
-          const { broadcastEvent } = await getBroadcastFunctions();
-          if (broadcastEvent) {
-            broadcastEvent("charging_overtime", {
+        if (!entry) return;
+        if (entry.status === "charging") {
+          if (this.noOvertime.has(queueEntryId)) {
+            // Auto-complete instead of overtime
+            await this.completeCharging(queueEntryId);
+            this.noOvertime.delete(queueEntryId);
+          } else {
+            const updated = await SupabaseService.updateQueueEntry(
               queueEntryId,
-              estimatedEndTime: updated.estimatedEndTime,
-            });
-          }
-
-          // Send overtime email notification
-          try {
-            const userInfo = await this.getUserInfo(entry.userId);
-            const chargerName = this.getChargerName(entry.chargerId);
-
-            await EmailService.sendChargingExpiredNotification(
-              userInfo.email,
-              userInfo.name,
-              chargerName,
-              0 // Initially 0 minutes over
+              {
+                status: "overtime",
+              }
             );
-
-            console.log(
-              `Overtime email sent to ${userInfo.email} for ${chargerName}`
-            );
-          } catch (emailError) {
-            console.error("Failed to send overtime email:", emailError);
+            console.log(`Queue entry ${queueEntryId} marked as overtime`);
+            const { broadcastEvent } = await getBroadcastFunctions();
+            if (broadcastEvent) {
+              broadcastEvent("charging_overtime", {
+                queueEntryId,
+                estimatedEndTime: updated.estimatedEndTime,
+              });
+            }
+            try {
+              const userInfo = await this.getUserInfo(entry.userId);
+              const chargerName = this.getChargerName(entry.chargerId);
+              await EmailService.sendChargingExpiredNotification(
+                userInfo.email,
+                userInfo.name,
+                chargerName,
+                0
+              );
+            } catch (emailError) {
+              console.error("Failed to send overtime email:", emailError);
+            }
           }
         }
       } catch (error) {
         console.error(
-          `Error updating overtime status for queue entry ${queueEntryId}:`,
+          `Error handling timer expiry for queue entry ${queueEntryId}:`,
           error
         );
       }
@@ -167,6 +171,12 @@ export class TimerService {
         durationMinutes * 60 * 1000
       }ms)`
     );
+
+    if (!allowOvertime) {
+      this.noOvertime.add(queueEntryId);
+    } else {
+      this.noOvertime.delete(queueEntryId);
+    }
   }
 
   /**
@@ -225,6 +235,7 @@ export class TimerService {
    * Initialize timers for existing charging sessions on server startup
    */
   static async initializeExistingTimers() {
+    // NOTE: noOvertime set is in-memory only; admin-added synthetic sessions created after restart will default to allowOvertime=true
     try {
       const chargingEntries = await SupabaseService.findQueueEntries({
         status: ["charging", "overtime"],
