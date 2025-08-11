@@ -215,8 +215,8 @@ export default function Home() {
     if (!confirmingChargerId || !user?.id) return;
 
     // Validate duration input
-    if (durationInput < 30) {
-      addToast("Duration must be at least 30 minutes", "error");
+    if (durationInput < 1) {
+      addToast("Duration must be at least 1 minute", "error");
       return;
     }
     if (durationInput > 480) {

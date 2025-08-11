@@ -227,7 +227,7 @@ export class QueueService {
     // Check if there are people waiting and assign the newly available charger
     await this.assignChargersToWaitingUsers();
 
-    // Broadcast queue update
+    // Broadcast queue update immediately after completion
     await this.broadcastQueueUpdate();
 
     console.log(

@@ -6,7 +6,7 @@ interface SSEData {
   type: string;
   queue?: QueueEntry[];
   queueEntryId?: number;
-  estimatedEndTime?: string;
+  estimatedEndTime?: string; // added for overtime events
   durationMinutes?: number;
   minutesRemaining?: number;
   timestamp: number;
@@ -65,7 +65,7 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
     timersRef.current.clear();
   }, []);
 
-  // Start smooth timer for a charging session
+  // Start smooth timer for a charging session (keeps running into overtime; remainingSeconds can go negative)
   const startSmoothTimer = useCallback(
     (queueEntryId: number, estimatedEndTime: string) => {
       // Clear existing timer if any
@@ -86,7 +86,7 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
             ) {
               const now = new Date();
               const remainingMs = endTime.getTime() - now.getTime();
-              const remainingSeconds = Math.ceil(remainingMs / 1000); // Can be negative for overtime
+              const remainingSeconds = Math.ceil(remainingMs / 1000); // May be negative
 
               return {
                 ...entry,
@@ -94,7 +94,7 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
                 remainingTime: Math.max(
                   0,
                   Math.ceil(remainingMs / (1000 * 60))
-                ), // Keep for compatibility
+                ), // legacy minutes remaining non-negative
               };
             }
             return entry;
@@ -115,6 +115,16 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
       timersRef.current.delete(queueEntryId);
     }
   }, []);
+
+  // Merge partial updates to a single queue entry (used when receiving events like overtime/completed)
+  const mergeEntryUpdate = useCallback(
+    (queueEntryId: number, patch: Partial<QueueEntry>) => {
+      setQueue((prev) =>
+        prev.map((e) => (e.id === queueEntryId ? { ...e, ...patch } : e))
+      );
+    },
+    []
+  );
 
   // Connect to SSE
   const connect = useCallback(() => {
@@ -155,7 +165,7 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
                 // Fetch user details for the queue
                 fetchQueueUsers(data.queue);
 
-                // Start timers for charging entries
+                // (Re)start timers for charging or overtime entries
                 data.queue.forEach((entry) => {
                   if (
                     (entry.status === "charging" ||
@@ -163,6 +173,12 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
                     entry.estimatedEndTime
                   ) {
                     startSmoothTimer(entry.id, entry.estimatedEndTime);
+                  } else if (
+                    !(
+                      entry.status === "charging" || entry.status === "overtime"
+                    )
+                  ) {
+                    stopTimer(entry.id);
                   }
                 });
               }
@@ -175,14 +191,34 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
 
             case "timer_started":
               if (data.queueEntryId && data.estimatedEndTime) {
+                // Mark entry as charging locally (in case queue update slightly lags)
+                mergeEntryUpdate(data.queueEntryId, {
+                  status: "charging" as any,
+                  estimatedEndTime: data.estimatedEndTime,
+                });
                 startSmoothTimer(data.queueEntryId, data.estimatedEndTime);
               }
               break;
 
-            case "charging_completed":
             case "charging_overtime":
               if (data.queueEntryId) {
+                // Update status to overtime; keep timer running and allow negative remaining
+                mergeEntryUpdate(data.queueEntryId, {
+                  status: "overtime" as any,
+                });
+                if (data.estimatedEndTime) {
+                  startSmoothTimer(data.queueEntryId, data.estimatedEndTime);
+                }
+              }
+              break;
+
+            case "charging_completed":
+              if (data.queueEntryId) {
                 stopTimer(data.queueEntryId);
+                // Remove entry optimistically; actual removal will arrive via next queue_update
+                setQueue((prev) =>
+                  prev.filter((e) => e.id !== data.queueEntryId)
+                );
               }
               break;
 
@@ -217,7 +253,7 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
       console.error("[SSE] Failed to create EventSource:", error);
       setIsConnected(false);
     }
-  }, [startSmoothTimer, stopTimer]);
+  }, [fetchQueueUsers, startSmoothTimer, stopTimer, mergeEntryUpdate]);
 
   // Manual reconnect function
   const reconnect = useCallback(() => {

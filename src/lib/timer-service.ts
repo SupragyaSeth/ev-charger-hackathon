@@ -119,17 +119,18 @@ export class TimerService {
 
         if (entry && entry.status === "charging") {
           // Mark as overtime
-          await SupabaseService.updateQueueEntry(queueEntryId, {
+          const updated = await SupabaseService.updateQueueEntry(queueEntryId, {
             status: "overtime",
           });
 
           console.log(`Queue entry ${queueEntryId} marked as overtime`);
 
-          // Broadcast overtime status via SSE
+          // Broadcast overtime status via SSE (include end time so clients can continue negative countdown)
           const { broadcastEvent } = await getBroadcastFunctions();
           if (broadcastEvent) {
             broadcastEvent("charging_overtime", {
               queueEntryId,
+              estimatedEndTime: updated.estimatedEndTime,
             });
           }
 
@@ -236,18 +237,33 @@ export class TimerService {
 
           if (now >= endTime && entry.status === "charging") {
             // Already overtime, mark as such
-            await SupabaseService.updateQueueEntry(entry.id, {
+            const updated = await SupabaseService.updateQueueEntry(entry.id, {
               status: "overtime",
             });
+            // Broadcast overtime so clients update immediately on reconnect
+            const { broadcastEvent } = await getBroadcastFunctions();
+            if (broadcastEvent) {
+              broadcastEvent("charging_overtime", {
+                queueEntryId: entry.id,
+                estimatedEndTime: updated.estimatedEndTime,
+              });
+            }
           } else if (entry.status === "charging") {
             // Still within time, set up timer for remaining duration
             const remainingMs = endTime.getTime() - now.getTime();
             if (remainingMs > 0) {
               const timeoutId = setTimeout(async () => {
                 try {
-                  await SupabaseService.updateQueueEntry(entry.id, {
+                  const up = await SupabaseService.updateQueueEntry(entry.id, {
                     status: "overtime",
                   });
+                  const { broadcastEvent } = await getBroadcastFunctions();
+                  if (broadcastEvent) {
+                    broadcastEvent("charging_overtime", {
+                      queueEntryId: entry.id,
+                      estimatedEndTime: up.estimatedEndTime,
+                    });
+                  }
                 } catch (error) {
                   console.error(
                     `Error updating overtime status for queue entry ${entry.id}:`,
@@ -257,6 +273,15 @@ export class TimerService {
               }, remainingMs);
 
               this.intervals.set(entry.id, timeoutId);
+            }
+          } else if (entry.status === "overtime") {
+            // Broadcast existing overtime so late subscribers get state
+            const { broadcastEvent } = await getBroadcastFunctions();
+            if (broadcastEvent) {
+              broadcastEvent("charging_overtime", {
+                queueEntryId: entry.id,
+                estimatedEndTime: entry.estimatedEndTime,
+              });
             }
           }
         }
