@@ -1,6 +1,6 @@
 # This is a [Next.js](https://nextjs.org) and Supabase project for Credo's EV Charger Management system. 
 
-### Implemented by 2025 summer interns: Hunter Broughton, Kevin Zhang, Farhan Ahmad, and Supragaya Seth
+### Implemented by 2025 summer interns: Hunter Broughton, Kevin Zhang, Farhan Ahmad, and Supragaya Seth at the 2025 Credo Hackathon
 
 Will now be managed and monitored by Credo IT, direct questions and reports to that department. 
 
@@ -18,9 +18,13 @@ a pull request and notify the IT team to review it.
 ## Important Note for Supabase:
 
 If no calls are made to the Supabase API in a week, the project will be paused and needs to be reset.
-Maintainers must log into supa base and complete this if it were to occurr. 
 
-## How to 
+Maintainers must log into supabase through the github (credentials belong to IT) and complete this if it were to occurr. 
+
+## Future Improvements and Recconmendations: 
+
+- The company who supplies the chargers: Chargepoint, may have a private API key for the chargers, which would enhance monitoring accuracy and user experience. If anyone recovers this API key from charge point, and wishes to implement it into the software, please do so.
+- Certain edge cases have not been covered and testing for this site is limited. If able, future employees are more than welcome to contribute to this REPO to fix potential pain points while also contibuting testing.  
 
 ## Development: Getting Started
 
