@@ -9,11 +9,11 @@ a pull request and notify the IT team to review it.
 
 ## Tech Stack / Documentation:
 
-- Styling/css: tailwind
-- Database/auth: supabase - github login with it-system@credosemi.com
-- Email Notifications: SES - account info belongs to IT
-- Frontend Framework: React/Next.js
-- APIs: REST and SSE
+- **Styling/css**: tailwind
+- **Database/auth**: supabase - github login with it-system@credosemi.com
+- **Email Notifications**: SES - account info belongs to IT
+- **Frontend Framework**: React/Next.js
+- **APIs**: REST and SSE
 
 ## Important Note for Supabase:
 
