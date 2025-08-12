@@ -1,8 +1,27 @@
-This is a [Next.js](https://nextjs.org) project for Credo's EV Charger Management system. 
+# This is a [Next.js](https://nextjs.org) and Supabase project for Credo's EV Charger Management system. 
 
-Uses Next.js and Supabase
+### Implemented by 2025 summer interns: Hunter Broughton, Kevin Zhang, Farhan Ahmad, and Supragaya Seth
 
-## Getting Started
+Will now be managed and monitored by Credo IT, direct questions and reports to that department. 
+
+Project is open source! If you encounter a bug or would like to improve the software in any way, please create
+a pull request and notify the IT team to review it. 
+
+## Tech Stack / Documentation:
+
+Styling/css: tailwind
+Database/auth: supabase - github login with it-system@credosemi.com
+Email Notifications: SES - account info belongs to IT
+Frontend Framework: React/Next.js
+APIs: REST and SSE
+
+## Important Note for Supabase:
+If no calls are made to the Supabase API in a week, the project will be paused and needs to be reset.
+Maintainers must log into supa base and complete this if it were to occurr. 
+
+## How to 
+
+## Development: Getting Started
 
 First, run the development server:
 
