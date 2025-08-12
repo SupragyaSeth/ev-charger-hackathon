@@ -94,11 +94,13 @@ export default function AdminPage() {
     };
   }, [authed]);
 
-  async function action(action: string, body: any = {}) {
+  // Generic admin action helper. Clones body to avoid mutating React state objects passed in.
+  async function action(actionName: string, rawBody: any = {}) {
     if (!password) return;
+    const body = { ...rawBody }; // shallow clone so deletions don't mutate caller state
     try {
       setLoading(true);
-      if (action === "addCharging" && body.chargerInput) {
+      if (actionName === "addCharging" && body.chargerInput) {
         const id = parseChargerInput(body.chargerInput);
         if (!id) {
           setError("Invalid charger (use A-H or 1-8)");
@@ -106,7 +108,7 @@ export default function AdminPage() {
           return;
         }
         body.chargerId = id;
-        delete body.chargerInput;
+        delete body.chargerInput; // safe now (does not touch state)
       }
       const res = await fetch("/api/admin/manage", {
         method: "POST",
@@ -114,7 +116,7 @@ export default function AdminPage() {
           "Content-Type": "application/json",
           "x-admin-password": password,
         },
-        body: JSON.stringify({ action, ...body }),
+        body: JSON.stringify({ action: actionName, ...body }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Failed");
@@ -288,7 +290,7 @@ export default function AdminPage() {
               <input
                 type="text"
                 maxLength={2}
-                value={addForm.chargerInput}
+                value={addForm.chargerInput ?? ""} // ensure stays controlled
                 onChange={(e) =>
                   setAddForm((f) => ({
                     ...f,
