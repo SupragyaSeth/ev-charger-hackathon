@@ -9,13 +9,14 @@ a pull request and notify the IT team to review it.
 
 ## Tech Stack / Documentation:
 
-Styling/css: tailwind
-Database/auth: supabase - github login with it-system@credosemi.com
-Email Notifications: SES - account info belongs to IT
-Frontend Framework: React/Next.js
-APIs: REST and SSE
+- Styling/css: tailwind
+- Database/auth: supabase - github login with it-system@credosemi.com
+- Email Notifications: SES - account info belongs to IT
+- Frontend Framework: React/Next.js
+- APIs: REST and SSE
 
 ## Important Note for Supabase:
+
 If no calls are made to the Supabase API in a week, the project will be paused and needs to be reset.
 Maintainers must log into supa base and complete this if it were to occurr. 
 
