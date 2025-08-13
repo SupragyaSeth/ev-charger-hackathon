@@ -59,7 +59,7 @@ export default function AuthPage() {
           {/* Tab Buttons */}
           <div className="flex bg-gray-50 dark:bg-gray-700 rounded-lg p-1 mb-6">
             <button
-              className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-3 px-4 rounded-md text-sm font-medium hover:cursor-pointer transition-all duration-200 ${
                 mode === "signin"
                   ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-500"
                   : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-600/50"
@@ -72,7 +72,7 @@ export default function AuthPage() {
               Sign In
             </button>
             <button
-              className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 py-3 px-4 rounded-md text-sm hover:cursor-pointer font-medium transition-all duration-200 ${
                 mode === "signup"
                   ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-500"
                   : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-600/50"
@@ -134,7 +134,7 @@ export default function AuthPage() {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white hover:cursor-pointer py-3 px-4 rounded-lg font-medium shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? (
@@ -165,7 +165,7 @@ export default function AuthPage() {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {mode === "signup"
               ? "By creating an account, you agree to our terms of service."
-              : "Need help? Contact your system administrator."}
+              : "Need help? Contact Credo IT Support"}
           </p>
         </div>
       </div>
