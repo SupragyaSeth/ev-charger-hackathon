@@ -2,6 +2,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api-client";
+import type { User } from "@/types";
+
+interface AuthResult {
+  user?: User | null;
+}
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -18,15 +23,15 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      let data;
+      let data: AuthResult;
       if (mode === "signup") {
-        data = await authApi.signUp(email, password, name);
+        data = (await authApi.signUp(email, password, name)) as AuthResult;
       } else {
-        data = await authApi.signIn(email, password);
+        data = (await authApi.signIn(email, password)) as AuthResult;
       }
 
       // Store user data in localStorage
-      if (data.user) {
+      if (data?.user) {
         window.localStorage.setItem("user", JSON.stringify(data.user));
         router.push("/");
       }

@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,
@@ -7,8 +5,9 @@ import {
   withErrorHandler,
 } from "@/lib/api-utils";
 
-export const GET = withErrorHandler(async (req: NextRequest) => {
-  const { searchParams } = req.nextUrl;
+export const GET = withErrorHandler(async (req: Request) => {
+  const url = new URL(req.url);
+  const searchParams = url.searchParams;
   const id = searchParams.get("id");
   const email = searchParams.get("email");
 

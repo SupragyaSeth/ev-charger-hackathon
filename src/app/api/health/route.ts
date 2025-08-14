@@ -1,10 +1,5 @@
-import { NextResponse } from "next/server";
 import { SupabaseService } from "@/lib/supabase-service";
-import {
-  createSuccessResponse,
-  createErrorResponse,
-  withErrorHandler,
-} from "@/lib/api-utils";
+import { createSuccessResponse, withErrorHandler } from "@/lib/api-utils";
 
 /**
  * GET /api/health

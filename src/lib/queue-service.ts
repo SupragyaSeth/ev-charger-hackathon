@@ -2,27 +2,7 @@ import { SupabaseService } from "./supabase-service";
 import { QueueEntry } from "@/types";
 import { TimerService } from "./timer-service";
 import { EmailService } from "./email-service";
-
-// Import the broadcast functions
-let broadcastQueueUpdate: ((data: any) => void) | null = null;
-let broadcastEvent: ((eventType: string, data: any) => void) | null = null;
-
-// Dynamically import to avoid circular dependency
-async function getBroadcastFunctions() {
-  if (!broadcastQueueUpdate || !broadcastEvent) {
-    try {
-      const {
-        broadcastQueueUpdate: broadcast,
-        broadcastEvent: broadcastEventFn,
-      } = await import("@/app/api/events/route");
-      broadcastQueueUpdate = broadcast;
-      broadcastEvent = broadcastEventFn;
-    } catch (error) {
-      console.warn("Could not import broadcast functions:", error);
-    }
-  }
-  return { broadcastQueueUpdate, broadcastEvent };
-}
+import { sseBroadcast } from "./sse-bus";
 
 export class QueueService {
   /**
@@ -30,15 +10,12 @@ export class QueueService {
    */
   private static async broadcastQueueUpdate() {
     try {
-      const { broadcastQueueUpdate } = await getBroadcastFunctions();
-      if (broadcastQueueUpdate) {
-        const queue = await this.getQueueWithEstimatedTimes();
-        broadcastQueueUpdate({
-          type: "queue_update",
-          queue,
-          timestamp: Date.now(),
-        });
-      }
+      const queue = await this.getQueueWithEstimatedTimes();
+      sseBroadcast({
+        type: "queue_update",
+        queue,
+        timestamp: Date.now(),
+      });
     } catch (error) {
       console.warn("Failed to broadcast queue update:", error);
     }
@@ -116,59 +93,61 @@ export class QueueService {
       `[QueueService] Starting charging for user ${userId} on charger ${chargerId}`
     );
 
-    // Check if charger is currently occupied
+    // Check if charger is currently occupied (charging or overtime)
     const occupiedEntry = await SupabaseService.findQueueEntry({
       chargerId,
       status: ["charging", "overtime"],
     });
-
     if (occupiedEntry) {
       throw new Error(
         "Charger is currently occupied. Please wait for the current user to finish."
       );
     }
 
-    // Find the user's queue entry - they should be first in line for ANY charger
+    // Fetch the user's waiting entry (no position restriction now)
     const userEntry = await SupabaseService.findQueueEntry({
       userId,
       status: "waiting",
     });
-
-    if (!userEntry || userEntry.position !== 1) {
-      throw new Error("User is not first in queue or not found");
+    if (!userEntry) {
+      throw new Error("User is not waiting in the queue or not found");
     }
 
-    // Verify this charger is actually available (not just unoccupied)
-    const availableChargers = await this.getAvailableChargers();
-    if (!availableChargers.includes(chargerId)) {
-      throw new Error("Selected charger is not available");
+    // Ensure user has been assigned this charger (auto-assignment step)
+    if (userEntry.chargerId !== chargerId || userEntry.chargerId === 0) {
+      throw new Error(
+        "Charger not assigned to this user yet. Wait for assignment before starting."
+      );
     }
 
-    // Update the user's entry to charging status and assign the charger
+    // Verify charger still available (race safety) - already checked, but keep for clarity
+    // (Optional) Could re-check again here or rely on unique index in future
+
+    // Update queue entry to charging
     const updated = await SupabaseService.updateQueueEntry(userEntry.id, {
       status: "charging",
-      chargerId: chargerId, // Update to the selected charger
+      chargerId,
       durationMinutes,
       chargingStartedAt: new Date().toISOString(),
     });
 
-    // Start the server-side timer
+    // Start timer for this queue entry
     await TimerService.startChargingTimer(userEntry.id, durationMinutes);
 
-    // Remove any other waiting entries for this user (shouldn't exist, but cleanup)
+    // Remove any other waiting entries for this user (safety cleanup)
     await SupabaseService.deleteQueueEntries({
       userId,
       status: "waiting",
     });
 
-    // Reorder the global queue after this user starts charging
+    // Reorder remaining waiting queue positions (fills gap if user was mid-queue)
     await this.reorderGlobalQueue();
 
-    // Check if more chargers are available and assign them to next users
+    // Attempt to assign any newly freed chargers (if multiple chargers free & next users waiting)
     await this.assignChargersToWaitingUsers();
 
     console.log(
-      `[QueueService] User ${userId} started charging on charger ${chargerId}`
+      `[QueueService] User ${userId} started charging on charger ${chargerId} (relaxed position rule)`
     );
     return updated;
   }

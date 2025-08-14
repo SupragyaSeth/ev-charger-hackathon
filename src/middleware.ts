@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function middleware() {
   // Middleware runs in Edge Runtime
   // Timer initialization has been moved to /api/init-timers
   return NextResponse.next();

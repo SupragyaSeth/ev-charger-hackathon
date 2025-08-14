@@ -1,27 +1,10 @@
 import { SupabaseService } from "./supabase-service";
 import { EmailService } from "./email-service";
+import { sseBroadcastEvent } from "./sse-bus";
 
-// Import the broadcast functions
-let broadcastQueueUpdate: ((data: any) => void) | null = null;
-let broadcastEvent: ((eventType: string, data: any) => void) | null = null;
-
-// Dynamically import to avoid circular dependency
-async function getBroadcastFunctions() {
-  if (!broadcastQueueUpdate || !broadcastEvent) {
-    try {
-      const {
-        broadcastQueueUpdate: broadcast,
-        broadcastEvent: broadcastEventFn,
-      } = await import("@/app/api/events/route");
-      broadcastQueueUpdate = broadcast;
-      broadcastEvent = broadcastEventFn;
-    } catch (error) {
-      console.warn("Could not import broadcast functions:", error);
-    }
-  }
-  return { broadcastQueueUpdate, broadcastEvent };
-}
-
+/**
+ * TimerService class to manage charging timers for queue entries
+ */
 export class TimerService {
   private static intervals = new Map<number, NodeJS.Timeout>();
   private static noOvertime = new Set<number>(); // entries that should auto-complete instead of overtime
@@ -58,14 +41,11 @@ export class TimerService {
     console.log(`[TIMER] Updated database for queue entry ${queueEntryId}`);
 
     // Broadcast timer update via SSE
-    const { broadcastEvent } = await getBroadcastFunctions();
-    if (broadcastEvent) {
-      broadcastEvent("timer_started", {
-        queueEntryId,
-        estimatedEndTime: estimatedEndTime.toISOString(),
-        durationMinutes,
-      });
-    }
+    sseBroadcastEvent("timer_started", {
+      queueEntryId,
+      estimatedEndTime: estimatedEndTime.toISOString(),
+      durationMinutes,
+    });
 
     // Clear any existing timer for this entry
     this.clearTimer(queueEntryId);
@@ -95,13 +75,10 @@ export class TimerService {
             );
 
             // Broadcast almost complete status
-            const { broadcastEvent } = await getBroadcastFunctions();
-            if (broadcastEvent) {
-              broadcastEvent("charging_almost_complete", {
-                queueEntryId,
-                minutesRemaining: 2,
-              });
-            }
+            sseBroadcastEvent("charging_almost_complete", {
+              queueEntryId,
+              minutesRemaining: 2,
+            });
           }
         } catch (error) {
           console.error("Failed to send almost complete email:", error);
@@ -136,13 +113,10 @@ export class TimerService {
               }
             );
             console.log(`Queue entry ${queueEntryId} marked as overtime`);
-            const { broadcastEvent } = await getBroadcastFunctions();
-            if (broadcastEvent) {
-              broadcastEvent("charging_overtime", {
-                queueEntryId,
-                estimatedEndTime: updated.estimatedEndTime,
-              });
-            }
+            sseBroadcastEvent("charging_overtime", {
+              queueEntryId,
+              estimatedEndTime: updated.estimatedEndTime,
+            });
             try {
               const userInfo = await this.getUserInfo(entry.userId);
               const chargerName = this.getChargerName(entry.chargerId);
@@ -203,12 +177,9 @@ export class TimerService {
     console.log(`Charging completed and queue entry ${queueEntryId} removed`);
 
     // Broadcast completion via SSE
-    const { broadcastEvent } = await getBroadcastFunctions();
-    if (broadcastEvent) {
-      broadcastEvent("charging_completed", {
-        queueEntryId,
-      });
-    }
+    sseBroadcastEvent("charging_completed", {
+      queueEntryId,
+    });
   }
 
   /**
@@ -252,13 +223,10 @@ export class TimerService {
               status: "overtime",
             });
             // Broadcast overtime so clients update immediately on reconnect
-            const { broadcastEvent } = await getBroadcastFunctions();
-            if (broadcastEvent) {
-              broadcastEvent("charging_overtime", {
-                queueEntryId: entry.id,
-                estimatedEndTime: updated.estimatedEndTime,
-              });
-            }
+            sseBroadcastEvent("charging_overtime", {
+              queueEntryId: entry.id,
+              estimatedEndTime: updated.estimatedEndTime,
+            });
           } else if (entry.status === "charging") {
             // Still within time, set up timer for remaining duration
             const remainingMs = endTime.getTime() - now.getTime();
@@ -268,13 +236,10 @@ export class TimerService {
                   const up = await SupabaseService.updateQueueEntry(entry.id, {
                     status: "overtime",
                   });
-                  const { broadcastEvent } = await getBroadcastFunctions();
-                  if (broadcastEvent) {
-                    broadcastEvent("charging_overtime", {
-                      queueEntryId: entry.id,
-                      estimatedEndTime: up.estimatedEndTime,
-                    });
-                  }
+                  sseBroadcastEvent("charging_overtime", {
+                    queueEntryId: entry.id,
+                    estimatedEndTime: up.estimatedEndTime,
+                  });
                 } catch (error) {
                   console.error(
                     `Error updating overtime status for queue entry ${entry.id}:`,
@@ -287,13 +252,10 @@ export class TimerService {
             }
           } else if (entry.status === "overtime") {
             // Broadcast existing overtime so late subscribers get state
-            const { broadcastEvent } = await getBroadcastFunctions();
-            if (broadcastEvent) {
-              broadcastEvent("charging_overtime", {
-                queueEntryId: entry.id,
-                estimatedEndTime: entry.estimatedEndTime,
-              });
-            }
+            sseBroadcastEvent("charging_overtime", {
+              queueEntryId: entry.id,
+              estimatedEndTime: entry.estimatedEndTime,
+            });
           }
         }
       }

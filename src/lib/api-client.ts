@@ -1,9 +1,9 @@
-import { ApiResponse, QueueEntry } from "@/types";
+import { ApiResponse, QueueEntry, User } from "@/types";
 
 /**
  * Enhanced fetch wrapper with error handling and typed responses
  */
-export async function apiCall<T = any>(
+export async function apiCall<T = unknown>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
@@ -88,7 +88,7 @@ export const queueApi = {
    * Get users information
    */
   getUsers: async (userIds: number[]) => {
-    return apiCall<{ users: any[] }>("/api/auth/queue-users", {
+    return apiCall<{ users: User[] }>("/api/auth/queue-users", {
       method: "POST",
       body: JSON.stringify({ userIds }),
     });

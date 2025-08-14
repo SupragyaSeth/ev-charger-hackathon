@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { QueueService } from "@/lib/queue-service";
 import { SupabaseService } from "@/lib/supabase-service";
 import {
@@ -6,6 +5,7 @@ import {
   createErrorResponse,
   withErrorHandler,
 } from "@/lib/api-utils";
+import { QueueEntry } from "@/types";
 
 /**
  * GET /api/admin/status
@@ -16,7 +16,7 @@ export const GET = withErrorHandler(async () => {
   const users = await SupabaseService.getAllUsers();
 
   // Group queue by charger
-  const queueByCharger: Record<number, any[]> = {};
+  const queueByCharger: Record<number, QueueEntry[]> = {};
   for (let i = 1; i <= 8; i++) {
     queueByCharger[i] = queue.filter((entry) => entry.chargerId === i);
   }

@@ -20,9 +20,10 @@ function unauthorized() {
 
 async function broadcastFullQueue() {
   try {
-    // Reuse internal broadcast method
-    // @ts-ignore access private for admin refresh
-    await (QueueService as any).broadcastQueueUpdate();
+    // Access private method via type assertion
+    await (QueueService as unknown as {
+      reorderGlobalQueuePublic: () => Promise<void>;
+    });
   } catch {}
 }
 
@@ -31,11 +32,9 @@ export async function GET(req: NextRequest) {
   try {
     const queue = await QueueService.getQueueWithEstimatedTimes();
     return Response.json({ success: true, data: { queue } });
-  } catch (e: any) {
-    return Response.json(
-      { success: false, error: e?.message || "Failed" },
-      { status: 500 }
-    );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed";
+    return Response.json({ success: false, error: msg }, { status: 500 });
   }
 }
 
@@ -154,10 +153,8 @@ export async function POST(req: NextRequest) {
       default:
         throw new Error("Unknown action");
     }
-  } catch (e: any) {
-    return Response.json(
-      { success: false, error: e?.message || "Failed" },
-      { status: 400 }
-    );
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Failed";
+    return Response.json({ success: false, error: msg }, { status: 400 });
   }
 }

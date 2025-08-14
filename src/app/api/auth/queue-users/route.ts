@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { SupabaseService } from "@/lib/supabase-service";
 import {
   createSuccessResponse,

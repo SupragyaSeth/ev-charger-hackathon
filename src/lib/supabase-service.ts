@@ -1,41 +1,44 @@
 import { supabaseAdmin } from "./supabase";
 import { QueueEntry, User } from "@/types";
 
+// JSON value typing
+export type Primitive = string | number | boolean | null;
+export interface JsonObject {
+  [key: string]: JsonValue;
+}
+export type JsonValue = Primitive | JsonObject | JsonValue[];
+
 // Helper function to convert snake_case to camelCase for compatibility
-function convertToCamelCase(obj: any): any {
-  if (!obj || typeof obj !== "object") return obj;
-
+function convertToCamelCase<T extends JsonValue>(obj: T): T {
+  if (obj === null || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) {
-    return obj.map(convertToCamelCase);
+    return obj.map((item) => convertToCamelCase(item)) as T;
   }
-
-  const converted: any = {};
-  for (const [key, value] of Object.entries(obj)) {
+  const converted: Record<string, JsonValue> = {};
+  for (const [key, value] of Object.entries(obj as JsonObject)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) =>
       letter.toUpperCase()
     );
     converted[camelKey] = convertToCamelCase(value);
   }
-  return converted;
+  return converted as T;
 }
 
 // Helper function to convert camelCase to snake_case for database operations
-function convertToSnakeCase(obj: any): any {
-  if (!obj || typeof obj !== "object") return obj;
-
+function convertToSnakeCase<T extends JsonValue>(obj: T): T {
+  if (obj === null || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) {
-    return obj.map(convertToSnakeCase);
+    return obj.map((item) => convertToSnakeCase(item)) as T;
   }
-
-  const converted: any = {};
-  for (const [key, value] of Object.entries(obj)) {
+  const converted: Record<string, JsonValue> = {};
+  for (const [key, value] of Object.entries(obj as JsonObject)) {
     const snakeKey = key.replace(
       /[A-Z]/g,
       (letter) => `_${letter.toLowerCase()}`
     );
     converted[snakeKey] = convertToSnakeCase(value);
   }
-  return converted;
+  return converted as T;
 }
 
 export class SupabaseService {
@@ -80,11 +83,27 @@ export class SupabaseService {
   static async getAllUsers(): Promise<User[]> {
     const { data, error } = await supabaseAdmin
       .from("users")
-      .select("id, name, email, created_at")
+      .select("id, name, email, created_at, password")
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(`Failed to fetch users: ${error.message}`);
-    return convertToCamelCase(data) as User[];
+    if (!data) return [];
+    return (data as unknown[]).map((row) => {
+      const r = row as {
+        id: number;
+        name: string | null;
+        email: string;
+        created_at: string;
+        password: string | null;
+      };
+      return {
+        id: r.id,
+        name: r.name || undefined,
+        email: r.email,
+        password: r.password || "",
+        createdAt: r.created_at,
+      } as User;
+    });
   }
 
   // Queue operations
@@ -178,7 +197,7 @@ export class SupabaseService {
   }
 
   static async getLastPositionInQueue(chargerId: number): Promise<number> {
-    const { data, error } = await supabaseAdmin
+    const { data } = await supabaseAdmin
       .from("queue")
       .select("position")
       .eq("charger_id", chargerId)

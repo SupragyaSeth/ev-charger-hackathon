@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { QueueService } from "@/lib/queue-service";
 import {
   createSuccessResponse,

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { EmailService } from "@/lib/email-service";
 import {
   createSuccessResponse,

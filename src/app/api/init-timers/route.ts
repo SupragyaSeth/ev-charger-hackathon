@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { TimerService } from "@/lib/timer-service";
 import {
   createSuccessResponse,

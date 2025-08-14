@@ -48,10 +48,10 @@ export default function AdminPage() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Failed");
       setAuthed(true);
-      setQueue(json.data.queue || []); // initial snapshot
+      setQueue(json.data.queue || []);
       setError(null);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Authentication failed");
       setAuthed(false);
     } finally {
       setLoading(false);
@@ -73,15 +73,18 @@ export default function AdminPage() {
 
     es.onmessage = (evt) => {
       try {
-        const data = JSON.parse(evt.data);
+        const data = JSON.parse(evt.data) as {
+          type?: string;
+          queue?: QueueEntry[];
+        };
         if (
           (data.type === "queue_update" || data.type === "initial_state") &&
           data.queue
         ) {
           setQueue(data.queue);
         }
-      } catch (e) {
-        // ignore parse errors
+      } catch {
+        /* ignore parse errors */
       }
     };
 
@@ -95,12 +98,18 @@ export default function AdminPage() {
   }, [authed]);
 
   // Generic admin action helper. Clones body to avoid mutating React state objects passed in.
-  async function action(actionName: string, rawBody: any = {}) {
+  async function action(
+    actionName: string,
+    rawBody: Record<string, unknown> = {}
+  ) {
     if (!password) return;
-    const body = { ...rawBody }; // shallow clone so deletions don't mutate caller state
+    const body: Record<string, unknown> = { ...rawBody };
     try {
       setLoading(true);
-      if (actionName === "addCharging" && body.chargerInput) {
+      if (
+        actionName === "addCharging" &&
+        typeof body.chargerInput === "string"
+      ) {
         const id = parseChargerInput(body.chargerInput);
         if (!id) {
           setError("Invalid charger (use A-H or 1-8)");
@@ -108,7 +117,7 @@ export default function AdminPage() {
           return;
         }
         body.chargerId = id;
-        delete body.chargerInput; // safe now (does not touch state)
+        delete body.chargerInput;
       }
       const res = await fetch("/api/admin/manage", {
         method: "POST",
@@ -120,8 +129,8 @@ export default function AdminPage() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "Failed");
-    } catch (e: any) {
-      setError(e.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Action failed");
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { QueueEntry } from "@/types";
+import { QueueEntry, User } from "@/types";
 import { queueApi } from "@/lib/api-client";
 
 interface SSEData {
@@ -10,7 +10,7 @@ interface SSEData {
   durationMinutes?: number;
   minutesRemaining?: number;
   timestamp: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface UseRealtimeQueueReturn {
@@ -47,8 +47,12 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
           number,
           { id: number; name?: string; email?: string }
         > = {};
-        usersData.users.forEach((user: any) => {
-          userMap[user.id] = user;
+        usersData.users.forEach((user: User) => {
+          userMap[user.id] = {
+            id: user.id,
+            name: user.name || undefined,
+            email: user.email || undefined,
+          };
         });
         setQueueUsers(userMap);
       } else {
@@ -193,9 +197,9 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
               if (data.queueEntryId && data.estimatedEndTime) {
                 // Mark entry as charging locally (in case queue update slightly lags)
                 mergeEntryUpdate(data.queueEntryId, {
-                  status: "charging" as any,
+                  status: "charging",
                   estimatedEndTime: data.estimatedEndTime,
-                });
+                } as Partial<QueueEntry>);
                 startSmoothTimer(data.queueEntryId, data.estimatedEndTime);
               }
               break;
@@ -204,8 +208,8 @@ export function useRealtimeQueue(): UseRealtimeQueueReturn {
               if (data.queueEntryId) {
                 // Update status to overtime; keep timer running and allow negative remaining
                 mergeEntryUpdate(data.queueEntryId, {
-                  status: "overtime" as any,
-                });
+                  status: "overtime",
+                } as Partial<QueueEntry>);
                 if (data.estimatedEndTime) {
                   startSmoothTimer(data.queueEntryId, data.estimatedEndTime);
                 }

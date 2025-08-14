@@ -1,85 +1,37 @@
 import { NextRequest } from "next/server";
 import { QueueService } from "@/lib/queue-service";
 import { TimerService } from "@/lib/timer-service";
+import {
+  registerSSEController,
+  unregisterSSEController,
+  sendDirect,
+} from "@/lib/sse-bus";
 
-// Store active connections
-const connections = new Set<ReadableStreamDefaultController>();
-
-// Helper to determine if controller is writable
-function controllerIsWritable(controller: ReadableStreamDefaultController) {
-  try {
-    // If any enqueue after close will throw; we optimistically test by checking a flag we set
-    return (controller as any)._open === true; // we manage this flag
-  } catch {
-    return false;
-  }
-}
-
-function markClosed(controller: ReadableStreamDefaultController) {
-  (controller as any)._open = false;
-}
-
-function register(controller: ReadableStreamDefaultController) {
-  (controller as any)._open = true;
-  connections.add(controller);
-}
-
-function tryEnqueue(
-  controller: ReadableStreamDefaultController,
-  payload: string,
-  logOnError = false
-) {
-  if (!controllerIsWritable(controller)) return; // already closed
-  try {
-    controller.enqueue(new TextEncoder().encode(payload));
-  } catch (e) {
-    // Suppress noisy invalid state errors once closed
-    if (logOnError) {
-      console.warn("[SSE] Suppressed enqueue after close");
-    }
-    connections.delete(controller);
-    markClosed(controller);
-  }
-}
-
-// Broadcast to all connected clients
-export function broadcastQueueUpdate(data: any) {
-  const message = `data: ${JSON.stringify(data)}\n\n`;
-  // console.log removed to reduce noise
-  const copy = Array.from(connections);
-  copy.forEach((c) => tryEnqueue(c, message));
-}
-
-// Enhanced broadcast function for different event types
-export function broadcastEvent(eventType: string, data: any) {
-  broadcastQueueUpdate({
-    type: eventType,
-    ...data,
-    timestamp: Date.now(),
-  });
+interface InitialStatePayload {
+  [key: string]: unknown;
+  type: string;
+  timestamp: number;
+  queue?: unknown;
 }
 
 export async function GET(request: NextRequest) {
   const stream = new ReadableStream({
     start(controller) {
-      register(controller);
+      registerSSEController(controller);
 
-      const send = (obj: any) =>
-        tryEnqueue(controller, `data: ${JSON.stringify(obj)}\n\n`);
+      const send = (obj: InitialStatePayload) => sendDirect(controller, obj);
 
-      // Handle client disconnect (Next.js sets abort on client close)
       request.signal.addEventListener("abort", () => {
-        connections.delete(controller);
-        markClosed(controller);
+        unregisterSSEController(controller);
       });
 
-      // Heartbeat every 25s to keep connection alive through proxies
+      // Heartbeat
       const heartbeat = setInterval(() => {
         send({ type: "heartbeat", timestamp: Date.now() });
       }, 25000);
-      (controller as any)._heartbeat = heartbeat;
+      (controller as unknown as { _heartbeat?: NodeJS.Timeout })._heartbeat =
+        heartbeat;
 
-      // Initial messages
       send({ type: "connected", timestamp: Date.now() });
 
       Promise.all([
@@ -92,15 +44,11 @@ export async function GET(request: NextRequest) {
         })
         .catch((error) => {
           console.error("Failed to fetch initial state:", error);
-          connections.delete(controller);
-          markClosed(controller);
+          unregisterSSEController(controller);
         });
     },
     cancel(controller) {
-      connections.delete(controller);
-      markClosed(controller);
-      const hb = (controller as any)._heartbeat;
-      if (hb) clearInterval(hb);
+      unregisterSSEController(controller);
     },
   });
 

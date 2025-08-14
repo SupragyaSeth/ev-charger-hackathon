@@ -49,9 +49,9 @@ export function createSuccessResponse<T>(
  * Async error handler for API routes
  */
 export function withErrorHandler(
-  handler: (req: Request | any) => Promise<NextResponse>
+  handler: (req: Request) => Promise<NextResponse>
 ) {
-  return async (req: Request | any): Promise<NextResponse> => {
+  return async (req: Request): Promise<NextResponse> => {
     try {
       return await handler(req);
     } catch (error) {

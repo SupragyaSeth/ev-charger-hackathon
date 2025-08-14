@@ -36,6 +36,11 @@ function CurrentTimeDisplay() {
   );
 }
 
+// Added type for getUser response to avoid unknown errors
+interface GetUserResponse {
+  user?: { id?: number; name?: string; email?: string; photo?: string } | null;
+}
+
 export default function Home() {
   // Use the enhanced SSE hook for all real-time updates
   const { queue, queueUsers, isConnected, timersInitialized, reconnect } =
@@ -45,7 +50,7 @@ export default function Home() {
   const [profileOpen, setProfileOpen] = useState(false); // Controls whether profile dropdown is open
   const profileRef = useRef<HTMLDivElement>(null); // Ref for profile dropdown to detect outside clicks
   const [authChecked, setAuthChecked] = useState(false); // Tracks if initial auth check is complete
-  const [chargers, setChargers] = useState<Charger[]>([
+  const [chargers /* setChargers */] = useState<Charger[]>([
     // Static array of all available chargers
     {
       id: 1,
@@ -107,7 +112,6 @@ export default function Home() {
   const [clickedBtn, setClickedBtn] = useState(1); // Track if a button has been clicked
   const [message, setMessage] = useState(""); // User feedback message displayed below action buttons
   const [loading, setLoading] = useState(false); // Global loading state for API operations
-  const [queueLoading, setQueueLoading] = useState(false); // Specific loading state for queue operations
   const [showDurationModal, setShowDurationModal] = useState(false); // Controls visibility of charging duration selection modal
   const [durationInput, setDurationInput] = useState(60); // User's selected charging duration in minutes
   const [confirmingChargerId, setConfirmingChargerId] = useState<number | null>( // ID of charger being confirmed for use
@@ -517,20 +521,6 @@ export default function Home() {
     return charger.timeRemaining + (position - 1) * CHARGING_DURATION_MINUTES;
   }
 
-  // Returns appropriate color class for charger status indicator
-  function getChargerStatusColor(charger: Charger): string {
-    if (!charger.isActive) return "bg-green-500";
-    if (charger.timeRemaining > 120) return "bg-red-500";
-    if (charger.timeRemaining > 60) return "bg-yellow-500";
-    return "bg-orange-500";
-  }
-
-  // Returns human-readable status text for charger display
-  function getChargerStatusText(charger: Charger): string {
-    if (!charger.isActive) return "Available";
-    return `In Use - ${formatTime(charger.timeRemaining)} remaining`;
-  }
-
   // User info state (from DB)
   const [user, setUser] = useState<{
     // Current logged-in user data
@@ -557,8 +547,8 @@ export default function Home() {
       if (typeof userRaw === "string" && userRaw[0] !== "{") {
         // Try to fetch user info from backend by email
         try {
-          const userData = await authApi.getUser(userRaw);
-          if (userData.user && userData.user.id) {
+          const userData = (await authApi.getUser(userRaw)) as GetUserResponse;
+          if (userData?.user && userData.user.id) {
             window.localStorage.setItem("user", JSON.stringify(userData.user));
             window.location.reload();
             return;
@@ -589,8 +579,10 @@ export default function Home() {
       }
       // Fetch user info from backend
       try {
-        const userData = await authApi.getUser(localUser.id!);
-        if (userData.user) {
+        const userData = (await authApi.getUser(
+          localUser.id!
+        )) as GetUserResponse;
+        if (userData?.user) {
           setUser(userData.user);
         } else {
           window.localStorage.removeItem("user");
@@ -980,55 +972,70 @@ export default function Home() {
               <div className="mt-2 flex gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => {setDurationInput(30); setClickedBtn(0);}}
+                  onClick={() => {
+                    setDurationInput(30);
+                    setClickedBtn(0);
+                  }}
                   className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
-                  clickedBtn === 0 
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    clickedBtn === 0
+                      ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}
                 >
                   30min
                 </button>
                 <button
                   type="button"
-                  onClick={() => {setDurationInput(60); setClickedBtn(1);}}
+                  onClick={() => {
+                    setDurationInput(60);
+                    setClickedBtn(1);
+                  }}
                   className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
-                  clickedBtn === 1 
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    clickedBtn === 1
+                      ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}
                 >
                   1hr
                 </button>
                 <button
                   type="button"
-                  onClick={() => {setDurationInput(120); setClickedBtn(2);}}
+                  onClick={() => {
+                    setDurationInput(120);
+                    setClickedBtn(2);
+                  }}
                   className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
-                  clickedBtn === 2 
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    clickedBtn === 2
+                      ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}
                 >
                   2hr
                 </button>
                 <button
                   type="button"
-                  onClick={() => {setDurationInput(180); setClickedBtn(3);}}
+                  onClick={() => {
+                    setDurationInput(180);
+                    setClickedBtn(3);
+                  }}
                   className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
-                  clickedBtn === 3 
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    clickedBtn === 3
+                      ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}
                 >
                   3hr
                 </button>
                 <button
                   type="button"
-                  onClick={() => {setDurationInput(240); setClickedBtn(4);}}
+                  onClick={() => {
+                    setDurationInput(240);
+                    setClickedBtn(4);
+                  }}
                   className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
-                  clickedBtn === 4 
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    clickedBtn === 4
+                      ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}
                 >
                   4hr
