@@ -1,18 +1,23 @@
 import nodemailer from "nodemailer";
 
-// Email configuration - using Ethereal test account for development
+// Environment-derived email configuration
+const SMTP_HOST = process.env.SMTP_HOST;
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587", 10);
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL;
+const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME || "EV Charging Station";
+
+// Build transport config only if required vars exist
 const EMAIL_CONFIG = {
-  host: process.env.SMTP_HOST || "smtp.ethereal.email",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: false, // true for 465, false for other ports
-  auth: {
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465, // true for 465 (SSL), false for STARTTLS
+  auth:
+    SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+} as const;
 
-    //NOTE: will put these in .env file later, DONT PUSH TO REPO WITH THESE CREDENTIALS
-    user: process.env.SMTP_USER || "bert.dubuque19@ethereal.email", 
-    pass: process.env.SMTP_PASS || "ycxyAFDCNT6KmeEa8P", 
-  },
-};
-
+// Lazily create transporter (will fail fast if host missing)
 const transporter = nodemailer.createTransport(EMAIL_CONFIG);
 
 export interface EmailOptions {
@@ -23,34 +28,40 @@ export interface EmailOptions {
 }
 
 export class EmailService {
+  private static fromAddress(): string {
+    if (!SMTP_FROM_EMAIL) {
+      throw new Error("SMTP_FROM_EMAIL not configured");
+    }
+    return `"${SMTP_FROM_NAME}" <${SMTP_FROM_EMAIL}>`;
+  }
   /**
    * Send an email notification
    */
   static async sendEmail(options: EmailOptions): Promise<void> {
     try {
-      if (!EMAIL_CONFIG.auth.user || !EMAIL_CONFIG.auth.pass) {
-        console.warn("Email credentials not configured, skipping email send");
+      // Basic validation
+      if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM_EMAIL) {
+        console.warn(
+          "Email not fully configured (missing one of host/user/pass/from). Skipping send."
+        );
         return;
       }
 
       const mailOptions = {
-        from: `"EV Charging Station" <bert.dubuque19@ethereal.email>`,
+        from: this.fromAddress(),
         to: options.to,
         subject: options.subject,
         html: options.html,
-        text: options.text || options.html.replace(/<[^>]*>/g, ""), // Strip HTML for text version
+        text: options.text || options.html.replace(/<[^>]*>/g, ""),
       };
 
       const info = await transporter.sendMail(mailOptions);
-      console.log("✅ Email sent successfully!");
-      console.log(`📧 Message ID: ${info.messageId}`);
+      console.log("✅ Email sent", info.messageId);
 
-      // For Ethereal emails, provide the preview URL
-      if (EMAIL_CONFIG.host === "smtp.ethereal.email") {
+      // (Optional) Ethereal preview support if using test host
+      if (SMTP_HOST?.includes("ethereal")) {
         const previewUrl = nodemailer.getTestMessageUrl(info);
-        if (previewUrl) {
-          console.log(`🔗 Preview email at: ${previewUrl}`);
-        }
+        if (previewUrl) console.log(`🔗 Preview: ${previewUrl}`);
       }
     } catch (error) {
       console.error("Failed to send email:", error);
@@ -92,11 +103,7 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendEmail({
-      to: userEmail,
-      subject,
-      html,
-    });
+    await this.sendEmail({ to: userEmail, subject, html });
   }
 
   /**
@@ -134,11 +141,7 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendEmail({
-      to: userEmail,
-      subject,
-      html,
-    });
+    await this.sendEmail({ to: userEmail, subject, html });
   }
 
   /**
@@ -161,12 +164,11 @@ export class EmailService {
           <h2 style="color: #dc2626; margin-top: 0;">⚠️ Charging Time Expired</h2>
           <p style="font-size: 16px; margin-bottom: 10px;">Hi ${userName},</p>
           <p style="font-size: 16px; margin-bottom: 15px;">
-            Your allocated charging time at <strong>${chargerName}</strong> has expired. 
-            ${
-              overtimeMinutes > 0
-                ? `You are currently <strong>${overtimeMinutes} minutes</strong> over your scheduled time.`
-                : ""
-            }
+            Your allocated charging time at <strong>${chargerName}</strong> has expired. ${
+      overtimeMinutes > 0
+        ? `You are currently <strong>${overtimeMinutes} minutes</strong> over your scheduled time.`
+        : ""
+    }
           </p>
           <p style="font-size: 16px; margin-bottom: 15px; color: #dc2626;">
             <strong>Please unplug and move your vehicle immediately.</strong>
@@ -184,11 +186,7 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendEmail({
-      to: userEmail,
-      subject,
-      html,
-    });
+    await this.sendEmail({ to: userEmail, subject, html });
   }
 
   /**
@@ -231,15 +229,11 @@ export class EmailService {
       </div>
     `;
 
-    await this.sendEmail({
-      to: userEmail,
-      subject,
-      html,
-    });
+    await this.sendEmail({ to: userEmail, subject, html });
   }
 
   /**
-   * Test email functionality with Ethereal
+   * Test email functionality
    */
   static async sendTestEmail(
     testEmail: string = "test@example.com"
@@ -273,10 +267,6 @@ export class EmailService {
     `;
 
     console.log("🧪 Sending test email...");
-    await this.sendEmail({
-      to: testEmail,
-      subject,
-      html,
-    });
+    await this.sendEmail({ to: testEmail, subject, html });
   }
 }
