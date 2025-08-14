@@ -1,4 +1,4 @@
--- Create the users table (equivalent to your Prisma User model)
+-- Create the users table
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create the queue table (equivalent to your Prisma Queue model)
+-- Create the queue table
 CREATE TABLE queue (
   id SERIAL PRIMARY KEY,
   position INTEGER NOT NULL,
