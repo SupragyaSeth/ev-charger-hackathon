@@ -104,6 +104,7 @@ export default function Home() {
       timeRemaining: 0,
     },
   ]);
+  const [clickedBtn, setClickedBtn] = useState(1); // Track if a button has been clicked
   const [message, setMessage] = useState(""); // User feedback message displayed below action buttons
   const [loading, setLoading] = useState(false); // Global loading state for API operations
   const [queueLoading, setQueueLoading] = useState(false); // Specific loading state for queue operations
@@ -979,36 +980,56 @@ export default function Home() {
               <div className="mt-2 flex gap-2 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setDurationInput(30)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
+                  onClick={() => {setDurationInput(30); setClickedBtn(0);}}
+                  className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
+                  clickedBtn === 0 
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                 >
                   30min
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDurationInput(60)}
-                  className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 hover:cursor-pointer dark:hover:bg-blue-800 transition-colors duration-200"
+                  onClick={() => {setDurationInput(60); setClickedBtn(1);}}
+                  className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
+                  clickedBtn === 1 
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                 >
                   1hr
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDurationInput(120)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
+                  onClick={() => {setDurationInput(120); setClickedBtn(2);}}
+                  className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
+                  clickedBtn === 2 
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                 >
                   2hr
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDurationInput(180)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
+                  onClick={() => {setDurationInput(180); setClickedBtn(3);}}
+                  className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
+                  clickedBtn === 3 
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                 >
                   3hr
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDurationInput(240)}
-                  className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 hover:cursor-pointer dark:hover:bg-gray-600 transition-colors duration-200"
+                  onClick={() => {setDurationInput(240); setClickedBtn(4);}}
+                  className={`px-3 py-1 text-xs rounded-full hover:cursor-pointer transition-colors duration-200 ${
+                  clickedBtn === 4 
+                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800" 
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
                 >
                   4hr
                 </button>
@@ -1239,7 +1260,7 @@ export default function Home() {
                 if (!isFinalStage) return null;
                 return (
                   <button
-                    className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-orange-600 hover:cursor-pointer hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => {
                       setCompletingEntry(userChargingEntry);
                       setShowCompletionModal(true);
@@ -1276,7 +1297,7 @@ export default function Home() {
                 if (userChargingEntry && !shouldAutoShowModal) {
                   return (
                     <button
-                      className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-green-600 hover:cursor-pointer hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => {
                         console.log("[DEBUG] Early completion button clicked");
                         setCompletingEntry(userChargingEntry);
