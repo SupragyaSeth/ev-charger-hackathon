@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function ResetPasswordPage() {
+// Child component that uses the search params. This must be wrapped in Suspense by the page component.
+function ResetPasswordInner() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") || "";
@@ -36,8 +37,9 @@ export default function ResetPasswordPage() {
       if (!res.ok || !data.success) throw new Error(data.error || "Failed");
       setMessage("Password successfully reset. Redirecting to sign in...");
       setTimeout(() => router.push("/auth"), 2500);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed";
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -82,5 +84,13 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
