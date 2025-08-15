@@ -7,6 +7,23 @@ import bcrypt from "bcryptjs";
 const RESET_TOKEN_BYTES = 32; // raw token length
 const RESET_TOKEN_TTL_MINUTES = 60; // expiry
 
+function resolveBaseUrl(req: Request): string {
+  // Explicit override if provided
+  const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+  if (configured) {
+    // If VERSEL_URL is set without protocol, add https://
+    if (!/^https?:\/\//i.test(configured)) {
+      return `https://${configured}`.replace(/\/$/, "");
+    }
+    return configured.replace(/\/$/, "");
+  }
+  // Derive from request (includes actual port, e.g. localhost:3001)
+  const url = new URL(req.url);
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
+  const proto = req.headers.get("x-forwarded-proto") || url.protocol.replace(/:$/, "");
+  return `${proto}://${host}`.replace(/\/$/, "");
+}
+
 export const POST = withErrorHandler(async (req: Request) => {
   const { email } = await req.json();
   if (!email) return createErrorResponse("Email required", 400);
@@ -25,8 +42,8 @@ export const POST = withErrorHandler(async (req: Request) => {
   // Persist token (invalidate old existing tokens for same user)
   await SupabaseService.storePasswordResetToken(user.id, tokenHash, expiresAt);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || "http://localhost:3000";
-  const resetLink = `${baseUrl.replace(/\/$/, "")}/auth/reset-password?token=${rawToken}`;
+  const baseUrl = resolveBaseUrl(req);
+  const resetLink = `${baseUrl}/auth/reset-password?token=${rawToken}`;
 
   const subject = "Password Reset Instructions";
   const html = `
