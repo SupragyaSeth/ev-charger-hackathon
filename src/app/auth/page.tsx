@@ -214,8 +214,9 @@ export default function AuthPage() {
                     throw new Error(data.error || "Failed");
                   }
                   setForgotMsg("Reset link sent.");
-                } catch (err: any) {
-                  setForgotMsg(err.message);
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Failed";
+                  setForgotMsg(msg);
                 } finally {
                   setForgotLoading(false);
                 }

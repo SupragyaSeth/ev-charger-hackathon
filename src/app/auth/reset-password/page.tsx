@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function ResetPasswordPage() {
+// Child component that uses the search params. This must be wrapped in Suspense by the page component.
+function ResetPasswordInner() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") || "";
@@ -36,8 +37,9 @@ export default function ResetPasswordPage() {
       if (!res.ok || !data.success) throw new Error(data.error || "Failed");
       setMessage("Password successfully reset. Redirecting to sign in...");
       setTimeout(() => router.push("/auth"), 2500);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed";
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -46,7 +48,7 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-xl shadow">
-        <h1 className="text-2xl font-bold mb-4 text-black">Reset Password</h1>
+        <h1 className="text-2xl font-bold mb-4 text-black dark:text-white">Reset Password</h1>
         {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
         {message && <div className="mb-4 text-sm text-green-600">{message}</div>}
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -82,5 +84,13 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
