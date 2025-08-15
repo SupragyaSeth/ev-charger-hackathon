@@ -287,4 +287,56 @@ export class SupabaseService {
 
     if (error) throw new Error(`Failed to clear queue: ${error.message}`);
   }
+
+  // Password reset token operations
+  static async storePasswordResetToken(
+    userId: number,
+    tokenHash: string,
+    expiresAtIso: string
+  ): Promise<void> {
+    // Delete existing tokens for user (optional cleanup)
+    await supabaseAdmin.from("password_reset_tokens").delete().eq("user_id", userId);
+    const { error } = await supabaseAdmin.from("password_reset_tokens").insert({
+      user_id: userId,
+      token_hash: tokenHash,
+      expires_at: expiresAtIso,
+    });
+    if (error) throw new Error(`Failed to store reset token: ${error.message}`);
+  }
+
+  static async findValidPasswordResetToken(
+    rawToken: string
+  ): Promise<{ id: number; userId: number } | null> {
+    // We can't query by raw token; need to fetch recent tokens and compare
+    const { data, error } = await supabaseAdmin
+      .from("password_reset_tokens")
+      .select("id, user_id, token_hash, expires_at, used_at")
+      .gte("expires_at", new Date().toISOString());
+    if (error || !data) return null;
+    const bcrypt = await import("bcryptjs");
+    for (const row of data) {
+      if (row.used_at) continue;
+      const match = await bcrypt.compare(rawToken, row.token_hash);
+      if (match) {
+        return { id: row.id, userId: row.user_id };
+      }
+    }
+    return null;
+  }
+
+  static async markPasswordResetTokenUsed(id: number): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from("password_reset_tokens")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw new Error(`Failed to mark token used: ${error.message}`);
+  }
+
+  static async updateUserPassword(userId: number, hashedPassword: string): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from("users")
+      .update({ password: hashedPassword })
+      .eq("id", userId);
+    if (error) throw new Error(`Failed to update password: ${error.message}`);
+  }
 }

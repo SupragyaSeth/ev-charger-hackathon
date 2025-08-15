@@ -269,4 +269,28 @@ export class EmailService {
     console.log("🧪 Sending test email...");
     await this.sendEmail({ to: testEmail, subject, html });
   }
+
+  /**
+   * Send password reset email
+   */
+  static async sendPasswordResetEmail(
+    to: string,
+    resetLink: string,
+    name?: string
+  ): Promise<void> {
+    const subject = "Password Reset Instructions";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width:600px;margin:0 auto;">
+        <h1 style="color:#2563eb;">EV Charging Station</h1>
+        <p>Hi${name ? ` ${name}` : ""},</p>
+        <p>You requested to reset your password. Click the button below to proceed. This link is valid for 60 minutes.</p>
+        <p style="text-align:center; margin:32px 0;">
+          <a href="${resetLink}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:6px;display:inline-block;">Reset Password</a>
+        </p>
+        <p>If you did not request this, you can ignore this email.</p>
+        <p style="color:#6b7280;font-size:12px">This is an automated message.</p>
+      </div>`;
+
+    await this.sendEmail({ to, subject, html });
+  }
 }

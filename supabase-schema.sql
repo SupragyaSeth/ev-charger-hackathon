@@ -20,12 +20,25 @@ CREATE TABLE queue (
   estimated_end_time TIMESTAMP WITH TIME ZONE
 );
 
+-- Create password_reset_tokens table for forgot password system
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(token_hash)
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_queue_charger_id ON queue(charger_id);
 CREATE INDEX idx_queue_user_id ON queue(user_id);
 CREATE INDEX idx_queue_status ON queue(status);
 CREATE INDEX idx_queue_position ON queue(position);
 CREATE INDEX idx_queue_charger_position ON queue(charger_id, position);
+CREATE INDEX IF NOT EXISTS idx_password_reset_user_id ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_expires_at ON password_reset_tokens(expires_at);
 
 -- Add Row Level Security (RLS) policies
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
