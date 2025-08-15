@@ -27,15 +27,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      {/* Use CSS variable driven colors so dark mode (prefers-color-scheme) applies */}
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen transition-colors`}
       >
         <ToastProvider>
           <nav className="flex justify-between items-center p-4 bg-gray-100 dark:bg-gray-900">
             {/* Wrap header text and image */}
             <div className="flex items-center gap-2 font-bold text-lg">
               <Image
-                src="/credo.png"   // Make sure this image is in /public/credo.png
+                src="/credo.png" // Make sure this image is in /public/credo.png
                 alt="Credo Logo"
                 width={98}
                 height={98}

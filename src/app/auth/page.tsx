@@ -51,10 +51,10 @@ export default function AuthPage() {
           <div className="flex justify-center mb-6">
             <img src="/credo.png" alt="Credo" className="h-16 w-auto" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-black mb-2">
             EV Charging Station
           </h1>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-black">
             Please sign in to access the charging queue
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function AuthPage() {
 
         {/* Footer */}
         <div className="text-center mt-6">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-black">
             {mode === "signup"
               ? "By creating an account, you agree to our terms of service."
               : "Need help? Contact Credo IT Support"}

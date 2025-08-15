@@ -30,7 +30,7 @@ function CurrentTimeDisplay() {
   }, []);
 
   return (
-    <p className="text-lg text-gray-600 dark:text-gray-300">
+    <p className="text-lg text-black">
       Current Time: {currentTime.toLocaleTimeString()}
     </p>
   );
@@ -1167,7 +1167,7 @@ export default function Home() {
           <div className="flex justify-center mb-8">
             <img src="/credo.png" alt="Credo" className="h-20 w-auto" />
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-4xl sm:text-5xl font-bold text-black mb-4">
             EV Charging Station
           </h1>
           <CurrentTimeDisplay />
@@ -1180,7 +1180,7 @@ export default function Home() {
                   isConnected ? "bg-green-500" : "bg-red-500"
                 }`}
               ></div>
-              <span className="text-sm text-gray-600 dark:text-gray-300">
+              <span className="text-sm text-black">
                 {isConnected ? "Real-time connected" : "Connection lost"}
               </span>
             </div>
@@ -1191,7 +1191,7 @@ export default function Home() {
                   timersInitialized ? "bg-green-500" : "bg-yellow-500"
                 }`}
               ></div>
-              <span className="text-sm text-gray-600 dark:text-gray-300">
+              <span className="text-sm text-black">
                 {timersInitialized ? "Timers ready" : "Initializing timers..."}
               </span>
             </div>
@@ -1388,7 +1388,7 @@ export default function Home() {
 
         {/* Charger Layout */}
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
+          <h2 className="text-2xl font-semibold text-black mb-4">
             Charger Layout
           </h2>
           <div className="flex justify-center">
